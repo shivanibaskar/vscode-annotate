@@ -13,6 +13,8 @@ import { exportMarkdown } from './commands/exportMarkdown';
 import { switchAnnotationSet } from './commands/switchAnnotationSet';
 import { exportCurrentFile } from './commands/exportCurrentFile';
 import { searchAnnotations } from './commands/searchAnnotations';
+import { exportFiltered } from './commands/exportFiltered';
+import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -52,6 +54,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('annotate.searchAnnotations',
       () => searchAnnotations(store)),
 
+    vscode.commands.registerCommand('annotate.exportFiltered',
+      () => exportFiltered(store)),
+
     vscode.commands.registerCommand('annotate.switchAnnotationSet',
       () => switchAnnotationSet(store, decorations, name => {
         updateTreeViewTitle();
@@ -74,6 +79,12 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.languages.registerHoverProvider('*', new AnnotationHoverProvider(store)),
+
+    (() => {
+      const provider = new AnnotationCodeLensProvider(store);
+      context.subscriptions.push({ dispose: () => provider.dispose() });
+      return vscode.languages.registerCodeLensProvider('*', provider);
+    })(),
 
     vscode.commands.registerCommand(
       'annotate.editAnnotation',

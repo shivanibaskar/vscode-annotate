@@ -1,7 +1,7 @@
 {
   "name": "vscode-annotate",
-  "displayName": "Annotate for LLM",
-  "description": "Annotate file selections with comments and export them as structured LLM context.",
+  "displayName": "LLM Annotator",
+  "description": "Annotate code and markdown selections with comments and tags, then export them as structured LLM context.",
   "version": "0.1.0",
   "publisher": "vscode-annotate",
   "engines": {
@@ -15,7 +15,7 @@
       "activitybar": [
         {
           "id": "annotate-sidebar",
-          "title": "Annotations",
+          "title": "LLM Annotator",
           "icon": "media/annotate-icon.svg"
         }
       ]
@@ -84,6 +84,11 @@
       {
         "command": "annotate.deleteAnnotation",
         "title": "Delete Annotation",
+        "category": "Annotate"
+      },
+      {
+        "command": "annotate.exportFiltered",
+        "title": "Export Filtered Annotations (by @mention)",
         "category": "Annotate"
       }
     ],

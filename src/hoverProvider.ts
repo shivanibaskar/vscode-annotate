@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Annotation } from './types';
 import { AnnotationStore } from './annotationStore';
+import { parseMentions } from './mentions';
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -57,6 +58,12 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
 
       // Body: user-supplied comment — appendText escapes Markdown, preventing injection
       md.appendText(ann.comment);
+
+      // @mention badges — parsed from the comment, shown as inline code tokens
+      const mentions = parseMentions(ann.comment);
+      if (mentions.length > 0) {
+        md.appendMarkdown('\n\n' + mentions.map(m => `\`${m}\``).join(' '));
+      }
 
       // Action buttons
       const editLink   = commandLink('$(pencil) Edit',   'annotate.editAnnotation',   ann);

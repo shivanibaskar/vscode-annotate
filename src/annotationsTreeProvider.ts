@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { Annotation } from './types';
 import { AnnotationStore } from './annotationStore';
+import { parseMentions } from './mentions';
 
 const MAX_LABEL_LEN = 60;
 
@@ -46,7 +47,9 @@ export class AnnotationNode extends vscode.TreeItem {
     super(truncate(annotation.comment), vscode.TreeItemCollapsibleState.None);
     this.annotation = annotation;
     const tagLabel = annotation.tag ? ` [${annotation.tag}]` : '';
-    this.description = lineLabel(annotation.range.start, annotation.range.end) + tagLabel;
+    const mentions = parseMentions(annotation.comment);
+    const mentionLabel = mentions.length > 0 ? '  ' + mentions.join(' ') : '';
+    this.description = lineLabel(annotation.range.start, annotation.range.end) + tagLabel + mentionLabel;
     this.tooltip = annotation.comment;
     const iconId = annotation.tag ? (TAG_ICONS[annotation.tag] ?? 'comment') : 'comment';
     this.iconPath = new vscode.ThemeIcon(iconId);
