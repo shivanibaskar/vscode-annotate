@@ -23,7 +23,7 @@ suite('parseMentions', () => {
     assert.deepStrictEqual(parseMentions('@TODO @Critical'), ['@todo', '@critical']);
   });
 
-  test('ignores @ not followed by a letter', () => {
+  test('ignores @ embedded in email addresses or other word characters', () => {
     assert.deepStrictEqual(parseMentions('email@example.com price is $10 @ store'), []);
   });
 

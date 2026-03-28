@@ -11,7 +11,9 @@
  * @returns Deduplicated array of lowercased mention strings including the `@` prefix.
  */
 export function parseMentions(comment: string): string[] {
-  const matches = comment.match(/@[a-zA-Z]\w*/g) ?? [];
+  // Negative lookbehind ensures we don't match email-style addresses like
+  // user@example.com — only @mentions preceded by whitespace or start-of-string.
+  const matches = comment.match(/(?<!\w)@[a-zA-Z]\w*/g) ?? [];
   return [...new Set(matches.map(m => m.toLowerCase()))];
 }
 

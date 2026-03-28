@@ -43,26 +43,38 @@ suite('showStaleDiff command — guard conditions', () => {
   });
 
   test('shows warning when no annotation exists at cursor position', async () => {
-    const doc = await vscode.workspace.openTextDocument({ content: 'hello\nworld\n' });
-    const editor = await vscode.window.showTextDocument(doc);
-    editor.selection = new vscode.Selection(0, 0, 0, 0);
-
-    await showStaleDiff(store, undefined);
-    assert.ok(warnings.some(w => w.includes('No annotation found at cursor')), `Expected cursor warning, got: ${JSON.stringify(warnings)}`);
+    // Mock activeTextEditor so the test doesn't need a real VS Code window.
+    const fakeEditor = {
+      selection: { active: { line: 5 } },
+      document: { uri: vscode.Uri.file('/workspace/src/fake.ts') },
+    };
+    const origDescriptor = Object.getOwnPropertyDescriptor(vscode.window, 'activeTextEditor');
+    Object.defineProperty(vscode.window, 'activeTextEditor', { get: () => fakeEditor, configurable: true });
+    try {
+      await showStaleDiff(store, undefined);
+      assert.ok(warnings.some(w => w.includes('No annotation found at cursor')), `Expected cursor warning, got: ${JSON.stringify(warnings)}`);
+    } finally {
+      if (origDescriptor) {
+        Object.defineProperty(vscode.window, 'activeTextEditor', origDescriptor);
+      }
+    }
   });
 
   test('shows info when annotation is not actually stale', async () => {
-    const doc = await vscode.workspace.openTextDocument({ content: 'const x = 1;\n' });
-    await vscode.window.showTextDocument(doc);
+    // Use package.json which is guaranteed to exist in the workspace.
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders?.length) { return; } // skip in environments with no workspace
 
-    const relPath = vscode.workspace.asRelativePath(doc.uri, false);
     const now = new Date().toISOString();
+    const raw = await vscode.workspace.fs.readFile(vscode.Uri.joinPath(folders[0].uri, 'package.json'));
+    const firstLine = Buffer.from(raw).toString('utf8').split('\n')[0];
+
     const ann = {
-      id: 'diff-2',
-      fileUri: relPath,
+      id: 'diff-not-stale',
+      fileUri: 'package.json',
       range: { start: 0, end: 0 },
-      comment: 'fresh',
-      contentSnapshot: 'const x = 1;',
+      comment: 'fresh annotation',
+      contentSnapshot: firstLine, // matches current content exactly → not stale
       createdAt: now,
       updatedAt: now,
     };
