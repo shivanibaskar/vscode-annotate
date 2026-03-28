@@ -8,6 +8,10 @@ export class AnnotationStore {
   // All disk writes are chained onto this promise, eliminating concurrent write races.
   private _flushQueue: Promise<void> = Promise.resolve();
 
+  private readonly _onDidChange = new vscode.EventEmitter<void>();
+  /** Fires whenever annotations are added, removed, cleared, or shifted. */
+  readonly onDidChange: vscode.Event<void> = this._onDidChange.event;
+
   private getStoreUri(): vscode.Uri | undefined {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) {
@@ -76,17 +80,20 @@ export class AnnotationStore {
     const data = await this._ensureLoaded();
     data.annotations.push(annotation);
     this._scheduleFlush();
+    this._onDidChange.fire();
   }
 
   async remove(id: string): Promise<void> {
     const data = await this._ensureLoaded();
     data.annotations = data.annotations.filter(a => a.id !== id);
     this._scheduleFlush();
+    this._onDidChange.fire();
   }
 
   async clear(): Promise<void> {
     this._cache = { version: 1, annotations: [] };
     this._scheduleFlush();
+    this._onDidChange.fire();
     await this._flushQueue;
   }
 
@@ -155,6 +162,11 @@ export class AnnotationStore {
 
     if (modified) {
       this._scheduleFlush();
+      this._onDidChange.fire();
     }
+  }
+
+  dispose(): void {
+    this._onDidChange.dispose();
   }
 }

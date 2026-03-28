@@ -11,6 +11,24 @@
   "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "annotate-sidebar",
+          "title": "Annotations",
+          "icon": "media/annotate-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "annotate-sidebar": [
+        {
+          "id": "annotate.annotationsView",
+          "name": "Annotations",
+          "contextualTitle": "Annotations"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "annotate.annotateSelection",
@@ -26,6 +44,17 @@
         "command": "annotate.clearAnnotations",
         "title": "Clear All Annotations",
         "category": "Annotate"
+      },
+      {
+        "command": "annotate.refreshAnnotationsView",
+        "title": "Refresh",
+        "category": "Annotate",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "annotate.revealAnnotation",
+        "title": "Go to Annotation",
+        "category": "Annotate"
       }
     ],
     "menus": {
@@ -34,6 +63,13 @@
           "command": "annotate.annotateSelection",
           "when": "editorHasSelection",
           "group": "annotate@1"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "annotate.refreshAnnotationsView",
+          "when": "view == annotate.annotationsView",
+          "group": "navigation"
         }
       ]
     },

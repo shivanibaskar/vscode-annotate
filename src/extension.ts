@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from './annotationStore';
 import { DecorationsManager } from './decorations';
 import { AnnotationHoverProvider } from './hoverProvider';
+import { AnnotationsTreeProvider } from './annotationsTreeProvider';
+import { Annotation } from './types';
 import { annotateSelection } from './commands/annotateSelection';
 import { exportForLLM } from './commands/exportForLLM';
 import { clearAnnotations } from './commands/clearAnnotations';
@@ -9,6 +11,14 @@ import { clearAnnotations } from './commands/clearAnnotations';
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
   const decorations = new DecorationsManager(store);
+  const treeProvider = new AnnotationsTreeProvider(store);
+  const treeView = vscode.window.createTreeView('annotate.annotationsView', {
+    treeDataProvider: treeProvider,
+    showCollapseAll: true,
+  });
+
+  context.subscriptions.push(treeView, { dispose: () => treeProvider.dispose() });
+  context.subscriptions.push({ dispose: () => store.dispose() });
 
   context.subscriptions.push(
     vscode.commands.registerCommand('annotate.annotateSelection',
@@ -37,6 +47,27 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.languages.registerHoverProvider('*', new AnnotationHoverProvider(store)),
+
+    vscode.commands.registerCommand('annotate.refreshAnnotationsView', () => {
+      treeProvider.forceRefresh();
+    }),
+
+    vscode.commands.registerCommand(
+      'annotate.revealAnnotation',
+      async (annotation: Annotation) => {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders?.length) { return; }
+        const uri = vscode.Uri.joinPath(folders[0].uri, annotation.fileUri);
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const editor = await vscode.window.showTextDocument(doc);
+        const range = new vscode.Range(
+          new vscode.Position(annotation.range.start, 0),
+          new vscode.Position(annotation.range.end, Number.MAX_SAFE_INTEGER)
+        );
+        editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
+        editor.selection = new vscode.Selection(range.start, range.end);
+      }
+    ),
 
     { dispose: () => decorations.dispose() },
   );
