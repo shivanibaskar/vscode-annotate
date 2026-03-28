@@ -18,14 +18,25 @@ const LANG_MAP: Record<string, string> = {
   json: 'json',
   yaml: 'yaml', yml: 'yaml',
   md: 'markdown',
+  mdx: 'markdown',
+  rst: 'rst',
+  txt: 'plaintext',
   html: 'html',
   css: 'css',
   sql: 'sql',
 };
 
+/** Extensions treated as prose — exported without a code fence to avoid nesting issues. */
+const PROSE_EXTS = new Set(['md', 'mdx', 'rst', 'txt']);
+
 function langFromPath(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
   return LANG_MAP[ext] ?? ext;
+}
+
+function isProseFile(filePath: string): boolean {
+  const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+  return PROSE_EXTS.has(ext);
 }
 
 async function readLines(fileUri: string): Promise<string[] | null> {
@@ -56,8 +67,14 @@ function formatAnnotation(
 
   if (includeContents && lines) {
     const snippet = lines.slice(range.start, range.end + 1).join('\n');
-    const lang = langFromPath(annotation.fileUri);
-    block += `\n  CODE:\n  \`\`\`${lang}\n${snippet}\n  \`\`\`\n`;
+    if (isProseFile(annotation.fileUri)) {
+      // Prose files (md, mdx, rst, txt): emit content as plain text to avoid
+      // nesting markdown inside a markdown code fence.
+      block += `\n  CONTENT:\n${snippet.split('\n').map(l => `  ${l}`).join('\n')}\n`;
+    } else {
+      const lang = langFromPath(annotation.fileUri);
+      block += `\n  CODE:\n  \`\`\`${lang}\n${snippet}\n  \`\`\`\n`;
+    }
   }
 
   return block;

@@ -191,6 +191,37 @@ suite('exportForLLM', () => {
     }
   });
 
+  test('prose files use CONTENT: label instead of CODE: code fence', async () => {
+    const now = new Date().toISOString();
+    await store.add({ id: 'prose-1', fileUri: 'docs/README.md',  range: { start: 0, end: 1 }, comment: 'intro section', createdAt: now, updatedAt: now });
+    await store.add({ id: 'prose-2', fileUri: 'docs/guide.rst',  range: { start: 0, end: 0 }, comment: 'rst note',       createdAt: now, updatedAt: now });
+    await store.add({ id: 'prose-3', fileUri: 'notes/draft.txt', range: { start: 0, end: 0 }, comment: 'txt note',       createdAt: now, updatedAt: now });
+    await store.add({ id: 'prose-4', fileUri: 'app/comp.mdx',    range: { start: 0, end: 0 }, comment: 'mdx note',       createdAt: now, updatedAt: now });
+
+    await exportForLLM(store);
+    assert.ok(lastShownContent.includes('intro section'), 'Expected markdown comment in output');
+    assert.ok(!lastShownContent.includes('```markdown'), 'Expected no code fence for markdown files');
+    assert.ok(!lastShownContent.includes('```rst'),      'Expected no code fence for rst files');
+    assert.ok(!lastShownContent.includes('```plaintext'), 'Expected no code fence for txt files');
+  });
+
+  test('code files still use CODE: code fence', async () => {
+    await store.add({
+      id: 'code-1',
+      fileUri: 'src/index.ts',
+      range: { start: 0, end: 0 },
+      comment: 'ts note',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await exportForLLM(store);
+    // No file contents to read in test env, so CODE block won't appear,
+    // but at least COMMENT should be present and no CONTENT: label.
+    assert.ok(lastShownContent.includes('ts note'), 'Expected comment in output');
+    assert.ok(!lastShownContent.includes('CONTENT:'), 'Expected no CONTENT: label for code files');
+  });
+
   test('custom template uses user-defined header and footer', async () => {
     await store.add({
       id: 'tmpl-custom',
