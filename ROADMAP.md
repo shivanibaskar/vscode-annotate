@@ -49,19 +49,19 @@ Newer to the codebase. Uses the extension to build understanding while reading u
 > Developer + User personas
 
 - [x] **Stale annotation detection** — `shiftAnnotations` repositions ranges on every document edit
-- [ ] **Export preview** — show formatted output in a WebView before copying to clipboard
-- [ ] **Annotation labels / tags** — e.g. `bug`, `context`, `question`, `todo`
+- [x] **Export preview** — show formatted output in a WebView before copying to clipboard
+- [x] **Annotation labels / tags** — `bug`, `context`, `question`, `todo`, `important`; per-tag border colors
 
-### P2 — Collaboration & output formats
+### P2 — Collaboration & output formats ✅
 > PM + broader team
 
-- [ ] **Markdown export** — clean `## File > Line range` format for Notion/Confluence
-- [ ] **Named annotation sets / sessions** — save a named collection (e.g. "auth-refactor-context")
-- [ ] **Copy single file's annotations** — export just the current file instead of the whole workspace
+- [x] **Markdown export** — `## File > ### Lines X–Y` format for Notion/Confluence; Cmd+Shift+M
+- [x] **Named annotation sets / sessions** — switch sets via toolbar; each set is a separate `.json` file
+- [x] **Copy single file's annotations** — "Export Current File's Annotations" from editor context menu
 
-### P3 — Power features
+### P3 — Power features ✅
 > Developer persona
 
-- [ ] **`annotations.json` in source control** — docs/guidance for team sharing via git
-- [ ] **Quick-pick search across annotations** — fuzzy search across all comments via Command Palette
-- [ ] **LLM prompt templates** — configurable export format to target Claude vs GPT vs custom prompts
+- [x] **`annotations.json` in source control** — `.gitignore` comments + `docs/team-sharing.md`
+- [x] **Quick-pick search across annotations** — fuzzy search across all comments; Cmd+Shift+F
+- [x] **LLM prompt templates** — `default`, `claude`, `gpt`, `custom` presets via settings
