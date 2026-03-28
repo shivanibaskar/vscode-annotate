@@ -66,6 +66,29 @@ Newer to the codebase. Uses the extension to build understanding while reading u
 - [x] **Quick-pick search across annotations** — fuzzy search across all comments; Cmd+Shift+F
 - [x] **LLM prompt templates** — `default`, `claude`, `gpt`, `custom` presets via settings
 
+### P5 — Discoverability & UX polish ✅
+> All three personas; low-effort, high-visibility wins
+
+#### Sidebar panel
+- [x] **"Clear All Annotations" discoverability** — surfaced in `editor/context` menu and sidebar `view/title` toolbar with a `$(trash)` icon; renamed to "Clear Annotations…" to hint at the two-option modal
+- [x] **Annotation count badges on file nodes** — already implemented: `FileNode.description` shows `"N annotation(s)"` text alongside each file
+- [x] **Sort options in sidebar** — `$(sort-precedence)` button in sidebar toolbar opens a QuickPick to toggle sort-by-file / sort-by-date / sort-by-tag; preference persisted to `annotate.sidebarSortMode` workspace setting; syncs if `settings.json` is edited directly
+- [x] **Inline comment preview on sidebar hover** — already implemented: `AnnotationNode.tooltip` shows full comment text on hover
+
+#### Editor / gutter
+- [x] **Gutter icon differentiation by tag** — per-tag SVG gutter icons in `media/` (`gutter-bug.svg`, `gutter-question.svg`, `gutter-todo.svg`, `gutter-context.svg`, `gutter-important.svg`, `gutter-default.svg`, `gutter-stale.svg`); `DecorationsManager` loads them via `extensionUri`
+- [x] **Annotation count in status bar** — `$(comment) N annotation(s)` item in the right status bar; hidden when count is 0; click opens the LLM Annotator sidebar
+
+#### Onboarding / empty states
+- [x] **Empty sidebar state** — `treeView.message` shows platform-aware "No annotations yet — select text and press ⌘/Ctrl+Shift+H to start" when the store is empty
+- [x] **First-install welcome notification** — one-time toast on first activation listing the three core shortcuts; `globalState` flag prevents re-showing
+
+#### Destructive action safety
+- [x] **"Clear This File" option** — the "Clear Annotations…" modal now offers "Clear This File" (when an editor is active) and "Clear Workspace"; file-scoped clear is one atomic `store.save(filtered)` call
+- [x] **Undo last clear** — 10-second "Undo" toast after either clear action; `store.save(snapshot)` restores the pre-clear state and fires `onDidChange` so tree and decorations refresh automatically
+
+---
+
 ### P4 — Power-user depth
 > Heavy Claude Code users, markdown-heavy workflows
 
@@ -73,3 +96,4 @@ Newer to the codebase. Uses the extension to build understanding while reading u
 - [x] **Markdown file annotation support** — annotate sections of `.md`, `.mdx`, `.rst` docs the same way as code (READMEs, ADRs, PRDs, RFCs); critical for workflows where docs are half the LLM context
 - [x] **`@mention` tags in comments** — structured inline tags (`@question`, `@todo`, `@critical`, `@stale`) parsed from comment text; filter export to only emit annotations matching a given tag set
 - [x] **Stale annotation diff view** — when annotated source lines have changed since the note was written, show a side-by-side diff of the original captured content vs current; surface as a distinct "stale" gutter state beyond just line-shift detection
+- [x] **Annotate from Markdown preview tab** — `Cmd/Ctrl+Shift+H` fires from the built-in Markdown preview WebView (`when: activeWebviewPanelId == 'markdown.preview'`); resolves the source `.md` file via Tab API adjacency heuristic (handles "Open Preview to Side" layout) with fallback to visible editors and workspace search; parses ATX headings into sections (fence-aware, trailing-blank trimmed) and presents a QuickPick so the user annotates without leaving reading mode; gutter decorations appear in the source tab on next open; `src/commands/annotateFromMarkdownPreview.ts`

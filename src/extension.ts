@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from './annotationStore';
 import { DecorationsManager } from './decorations';
 import { AnnotationHoverProvider } from './hoverProvider';
-import { AnnotationsTreeProvider, AnnotationNode } from './annotationsTreeProvider';
+import { AnnotationsTreeProvider, AnnotationNode, SortMode } from './annotationsTreeProvider';
 import { Annotation } from './types';
 import { annotateSelection } from './commands/annotateSelection';
 import { exportForLLM } from './commands/exportForLLM';
@@ -20,10 +20,11 @@ import { syncWithBranch } from './commands/syncWithBranch';
 import { AnnotationSnapshotProvider, SNAPSHOT_SCHEME } from './annotationSnapshotProvider';
 import { showStaleDiff } from './commands/showStaleDiff';
 import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
+import { annotateFromMarkdownPreview } from './commands/annotateFromMarkdownPreview';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
-  const decorations = new DecorationsManager(store);
+  const decorations = new DecorationsManager(store, context.extensionUri);
   const branchWatcher = new GitBranchWatcher();
   context.subscriptions.push(branchWatcher);
   const treeProvider = new AnnotationsTreeProvider(store);
@@ -32,25 +33,74 @@ export function activate(context: vscode.ExtensionContext): void {
     showCollapseAll: true,
   });
 
-  function updateTreeViewTitle(): void {
-    treeView.message = store.setName === 'default'
-      ? undefined
-      : `Set: ${store.setName}`;
+  // ── Status bar ────────────────────────────────────────────────────────────
+  const statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  statusBar.command = 'workbench.view.extension.annotate-sidebar';
+  statusBar.tooltip = 'Open LLM Annotator panel';
+  context.subscriptions.push(statusBar);
+
+  async function updateStatusBar(): Promise<void> {
+    const data = await store.load();
+    const count = data.annotations.length;
+    if (count === 0) {
+      statusBar.hide();
+    } else {
+      statusBar.text = count === 1 ? '$(comment) 1 annotation' : `$(comment) ${count} annotations`;
+      statusBar.show();
+    }
   }
+
+  // ── Sidebar title / empty-state message ───────────────────────────────────
+  // Kept synchronous to remain compatible with syncWithBranch's callback type;
+  // async work runs in a fire-and-forget IIFE.
+  function updateTreeViewTitle(): void {
+    void (async () => {
+      const data = await store.load();
+      if (data.annotations.length === 0) {
+        treeView.message = `No annotations yet — select text and press ${
+          process.platform === 'darwin' ? '⌘' : 'Ctrl'
+        }+Shift+H to start`;
+      } else {
+        treeView.message = store.setName === 'default' ? undefined : `Set: ${store.setName}`;
+      }
+    })();
+  }
+
   updateTreeViewTitle();
+  void updateStatusBar();
+
+  store.onDidChange(() => {
+    updateTreeViewTitle();
+    void updateStatusBar();
+  });
 
   context.subscriptions.push(treeView, { dispose: () => treeProvider.dispose() });
   context.subscriptions.push({ dispose: () => store.dispose() });
+
+  // ── First-install welcome notification ────────────────────────────────────
+  if (!context.globalState.get<boolean>('annotate.welcomed')) {
+    void context.globalState.update('annotate.welcomed', true);
+    vscode.window.showInformationMessage(
+      'LLM Annotator ready! ' +
+      `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Shift+H to annotate, ` +
+      `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Shift+X to export, ` +
+      `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Shift+F to search.`,
+      'Got it'
+    );
+  }
 
   context.subscriptions.push(
     vscode.commands.registerCommand('annotate.annotateSelection',
       () => annotateSelection(store, decorations)),
 
+    vscode.commands.registerCommand('annotate.annotateFromMarkdownPreview',
+      () => annotateFromMarkdownPreview(store, decorations)),
+
     vscode.commands.registerCommand('annotate.exportForLLM',
       () => exportForLLM(store)),
 
     vscode.commands.registerCommand('annotate.clearAnnotations',
-      () => clearAnnotations(store, decorations)),
+      () => clearAnnotations(store, decorations, vscode.window.activeTextEditor)),
 
     vscode.commands.registerCommand('annotate.exportMarkdown',
       () => exportMarkdown(store)),
@@ -80,6 +130,33 @@ export function activate(context: vscode.ExtensionContext): void {
       SNAPSHOT_SCHEME,
       new AnnotationSnapshotProvider(store)
     ),
+
+    // ── Sort mode command ────────────────────────────────────────────────────
+    vscode.commands.registerCommand('annotate.setSortMode', async () => {
+      const current = treeProvider.sortMode;
+      const picks: Array<{ label: string; mode: SortMode; description?: string }> = [
+        { label: '$(file) Sort by file',  mode: 'file', description: current === 'file' ? '(current)' : undefined },
+        { label: '$(calendar) Sort by date', mode: 'date', description: current === 'date' ? '(current)' : undefined },
+        { label: '$(tag) Sort by tag',    mode: 'tag',  description: current === 'tag'  ? '(current)' : undefined },
+      ];
+      const picked = await vscode.window.showQuickPick(picks, { placeHolder: 'Select annotation sort order' });
+      if (!picked) { return; }
+      treeProvider.setSortMode(picked.mode);
+      await vscode.workspace.getConfiguration('annotate').update(
+        'sidebarSortMode',
+        picked.mode,
+        vscode.ConfigurationTarget.Workspace
+      );
+    }),
+
+    // Sync sort mode when settings.json is edited directly.
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('annotate.sidebarSortMode')) {
+        const raw = vscode.workspace.getConfiguration('annotate').get<string>('sidebarSortMode');
+        const mode: SortMode = raw === 'date' || raw === 'tag' ? raw : 'file';
+        treeProvider.setSortMode(mode);
+      }
+    }),
 
     // Notify user when git HEAD changes so they can switch annotation sets.
     branchWatcher.onDidChangeBranch(async branch => {

@@ -42,8 +42,15 @@
       },
       {
         "command": "annotate.clearAnnotations",
-        "title": "Clear All Annotations",
-        "category": "Annotate"
+        "title": "Clear Annotations…",
+        "category": "Annotate",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "annotate.setSortMode",
+        "title": "Sort Annotations",
+        "category": "Annotate",
+        "icon": "$(sort-precedence)"
       },
       {
         "command": "annotate.refreshAnnotationsView",
@@ -105,6 +112,11 @@
         "command": "annotate.exportToTerminal",
         "title": "Send Annotations to Terminal (Claude Code)",
         "category": "Annotate"
+      },
+      {
+        "command": "annotate.annotateFromMarkdownPreview",
+        "title": "Annotate Section (Markdown Preview)",
+        "category": "Annotate"
       }
     ],
     "menus": {
@@ -128,6 +140,11 @@
           "command": "annotate.exportCurrentFile",
           "when": "editorTextFocus",
           "group": "annotate@4"
+        },
+        {
+          "command": "annotate.clearAnnotations",
+          "when": "editorTextFocus",
+          "group": "annotate@5"
         }
       ],
       "view/item/context": [
@@ -147,6 +164,12 @@
           "group": "annotate@3"
         }
       ],
+      "commandPalette": [
+        {
+          "command": "annotate.annotateFromMarkdownPreview",
+          "when": "activeWebviewPanelId == 'markdown.preview'"
+        }
+      ],
       "view/title": [
         {
           "command": "annotate.refreshAnnotationsView",
@@ -155,6 +178,16 @@
         },
         {
           "command": "annotate.switchAnnotationSet",
+          "when": "view == annotate.annotationsView",
+          "group": "navigation"
+        },
+        {
+          "command": "annotate.setSortMode",
+          "when": "view == annotate.annotationsView",
+          "group": "navigation"
+        },
+        {
+          "command": "annotate.clearAnnotations",
           "when": "view == annotate.annotationsView",
           "group": "navigation"
         }
@@ -202,6 +235,12 @@
         "key": "ctrl+shift+t",
         "mac": "cmd+shift+t",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.annotateFromMarkdownPreview",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h",
+        "when": "activeWebviewPanelId == 'markdown.preview'"
       }
     ],
     "configuration": {
@@ -228,6 +267,17 @@
           "type": "string",
           "default": "",
           "description": "Custom header and footer separated by '|||'. Example: 'MY HEADER|||MY FOOTER'. Only used when annotate.promptTemplate is 'custom'."
+        },
+        "annotate.sidebarSortMode": {
+          "type": "string",
+          "enum": ["file", "date", "tag"],
+          "enumDescriptions": [
+            "Sort files alphabetically; annotations by line number (default)",
+            "Sort files by most-recently-updated annotation; annotations newest first",
+            "Sort files alphabetically; annotations by tag priority then line number"
+          ],
+          "default": "file",
+          "description": "Controls the sort order of annotations in the sidebar panel."
         }
       }
     }
