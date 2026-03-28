@@ -105,6 +105,32 @@
         }
       ]
     },
+    "keybindings": [
+      {
+        "command": "annotate.annotateSelection",
+        "key": "ctrl+shift+h",
+        "mac": "cmd+shift+h",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "annotate.editAnnotation",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.deleteAnnotation",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.exportForLLM",
+        "key": "ctrl+shift+x",
+        "mac": "cmd+shift+x",
+        "when": "editorTextFocus"
+      }
+    ],
     "configuration": {
       "title": "Annotate for LLM",
       "properties": {
