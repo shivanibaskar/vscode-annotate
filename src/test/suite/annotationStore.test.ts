@@ -314,4 +314,33 @@ suite('AnnotationStore.shiftAnnotations', () => {
     assert.strictEqual(ann.range.start, 2);
     assert.strictEqual(ann.range.end, 4);
   });
+
+  test('insertion at annotation start shifts start and end (anchor fix)', async () => {
+    // Annotation at lines 3–5; newline inserted at line 3 pushes content down.
+    await store.add(makeAnnotation({ id: 'a', fileUri: 'src/foo.ts', range: { start: 3, end: 5 } }));
+    await store.shiftAnnotations('src/foo.ts', [makeChange(3, 3, '\n')]);
+
+    const [ann] = await store.getForFile('src/foo.ts');
+    assert.strictEqual(ann.range.start, 4, 'start should shift when insertion is at annotation start');
+    assert.strictEqual(ann.range.end, 6);
+  });
+
+  test('insertion strictly inside annotation span preserves start', async () => {
+    // Annotation at lines 2–6; newline inserted at line 4 (inside the span).
+    await store.add(makeAnnotation({ id: 'a', fileUri: 'src/foo.ts', range: { start: 2, end: 6 } }));
+    await store.shiftAnnotations('src/foo.ts', [makeChange(4, 4, '\n')]);
+
+    const [ann] = await store.getForFile('src/foo.ts');
+    assert.strictEqual(ann.range.start, 2, 'start should not shift when change is inside span');
+    assert.strictEqual(ann.range.end, 7);
+  });
+
+  test('insertion at line 0 shifts annotation at line 0', async () => {
+    await store.add(makeAnnotation({ id: 'a', fileUri: 'src/foo.ts', range: { start: 0, end: 0 } }));
+    await store.shiftAnnotations('src/foo.ts', [makeChange(0, 0, '\n')]);
+
+    const [ann] = await store.getForFile('src/foo.ts');
+    assert.strictEqual(ann.range.start, 1);
+    assert.strictEqual(ann.range.end, 1);
+  });
 });

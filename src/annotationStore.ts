@@ -199,7 +199,18 @@ export class AnnotationStore {
             return { ...ann, range: { start: start + lineDelta, end: end + lineDelta } };
           }
 
-          // Annotation overlaps the changed region: keep start, adjust end.
+          // Annotation overlaps the changed region.
+          // For insertions (lineDelta > 0) at or before the annotation start,
+          // the annotated content has moved down — shift both bounds.
+          // For deletions, or changes strictly inside the span, only end shifts
+          // (the filter below removes annotations whose end falls below start).
+          if (lineDelta > 0 && changeStart <= start) {
+            return {
+              ...ann,
+              range: { start: start + lineDelta, end: end + lineDelta },
+              updatedAt: new Date().toISOString(),
+            };
+          }
           return {
             ...ann,
             range: { start, end: end + lineDelta },
