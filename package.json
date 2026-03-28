@@ -1,0 +1,77 @@
+{
+  "name": "vscode-annotate",
+  "displayName": "Annotate for LLM",
+  "description": "Annotate file selections with comments and export them as structured LLM context.",
+  "version": "0.1.0",
+  "publisher": "vscode-annotate",
+  "engines": {
+    "vscode": "^1.88.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "annotate.annotateSelection",
+        "title": "Annotate Selection",
+        "category": "Annotate"
+      },
+      {
+        "command": "annotate.exportForLLM",
+        "title": "Export Annotations for LLM",
+        "category": "Annotate"
+      },
+      {
+        "command": "annotate.clearAnnotations",
+        "title": "Clear All Annotations",
+        "category": "Annotate"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "annotate.annotateSelection",
+          "when": "editorHasSelection",
+          "group": "annotate@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Annotate for LLM",
+      "properties": {
+        "annotate.includeFileContents": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include the annotated lines verbatim in the LLM export."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "webpack --mode production",
+    "watch": "webpack --mode development --watch",
+    "lint": "eslint src --ext ts",
+    "pretest": "tsc -p tsconfig.test.json",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.88.0",
+    "@types/node": "20.x",
+    "@types/mocha": "^10.0.0",
+    "@types/uuid": "^9.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "mocha": "^10.0.0",
+    "ts-loader": "^9.5.0",
+    "typescript": "^5.4.0",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.0",
+    "@vscode/test-electron": "^2.3.0"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  }
+}
