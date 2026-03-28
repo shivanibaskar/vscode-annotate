@@ -45,7 +45,12 @@ export async function annotateSelection(
   await store.add({
     id: uuidv4(),
     fileUri,
-    range: { start: selection.start.line, end: endLine },
+    range: {
+      start: selection.start.line,
+      end: endLine,
+      startChar: selection.start.character,
+      endChar: selection.end.character,
+    },
     comment: comment.trim(),
     createdAt: now,
     updatedAt: now,

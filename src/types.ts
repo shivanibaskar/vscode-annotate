@@ -3,6 +3,11 @@ export interface LineRange {
   start: number;
   /** 0-based, inclusive end line */
   end: number;
+  /** 0-based start character within the start line. When present, the
+   *  decoration is character-precise rather than whole-line. */
+  startChar?: number;
+  /** 0-based end character within the end line. */
+  endChar?: number;
 }
 
 export interface Annotation {
