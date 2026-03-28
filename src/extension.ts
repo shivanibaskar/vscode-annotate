@@ -10,6 +10,7 @@ import { clearAnnotations } from './commands/clearAnnotations';
 import { editAnnotation } from './commands/editAnnotation';
 import { deleteAnnotation } from './commands/deleteAnnotation';
 import { exportMarkdown } from './commands/exportMarkdown';
+import { switchAnnotationSet } from './commands/switchAnnotationSet';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -19,6 +20,13 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider: treeProvider,
     showCollapseAll: true,
   });
+
+  function updateTreeViewTitle(): void {
+    treeView.message = store.setName === 'default'
+      ? undefined
+      : `Set: ${store.setName}`;
+  }
+  updateTreeViewTitle();
 
   context.subscriptions.push(treeView, { dispose: () => treeProvider.dispose() });
   context.subscriptions.push({ dispose: () => store.dispose() });
@@ -35,6 +43,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.exportMarkdown',
       () => exportMarkdown(store)),
+
+    vscode.commands.registerCommand('annotate.switchAnnotationSet',
+      () => switchAnnotationSet(store, decorations, name => {
+        updateTreeViewTitle();
+      })),
 
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (editor) { decorations.refresh(editor); }

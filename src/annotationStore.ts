@@ -1,9 +1,16 @@
 import * as vscode from 'vscode';
 import { Annotation, AnnotationsFile } from './types';
 
-const ANNOTATIONS_PATH = '.vscode/annotations.json';
+const DEFAULT_SET = 'default';
+
+function annotationsPath(setName: string): string {
+  return setName === DEFAULT_SET
+    ? '.vscode/annotations.json'
+    : `.vscode/annotations-${setName}.json`;
+}
 
 export class AnnotationStore {
+  private _setName: string = DEFAULT_SET;
   private _cache: AnnotationsFile | null = null;
   // All disk writes are chained onto this promise, eliminating concurrent write races.
   private _flushQueue: Promise<void> = Promise.resolve();
@@ -12,12 +19,47 @@ export class AnnotationStore {
   /** Fires whenever annotations are added, removed, cleared, or shifted. */
   readonly onDidChange: vscode.Event<void> = this._onDidChange.event;
 
+  get setName(): string { return this._setName; }
+
+  /**
+   * Switch to a different annotation set. Resets the in-memory cache so the
+   * next read loads from the new file on disk.
+   */
+  switchSet(name: string): void {
+    if (name === this._setName) { return; }
+    this._setName = name;
+    this._cache = null;
+    this._onDidChange.fire();
+  }
+
+  /** Returns the names of all annotation sets that exist on disk. */
+  static async listSets(): Promise<string[]> {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) { return [DEFAULT_SET]; }
+    const vscodeDirUri = vscode.Uri.joinPath(folders[0].uri, '.vscode');
+    try {
+      const entries = await vscode.workspace.fs.readDirectory(vscodeDirUri);
+      const sets = new Set<string>([DEFAULT_SET]);
+      for (const [name] of entries) {
+        if (name === 'annotations.json') {
+          sets.add(DEFAULT_SET);
+        } else {
+          const m = name.match(/^annotations-(.+)\.json$/);
+          if (m) { sets.add(m[1]); }
+        }
+      }
+      return [...sets].sort();
+    } catch {
+      return [DEFAULT_SET];
+    }
+  }
+
   private getStoreUri(): vscode.Uri | undefined {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders || folders.length === 0) {
       return undefined;
     }
-    return vscode.Uri.joinPath(folders[0].uri, ANNOTATIONS_PATH);
+    return vscode.Uri.joinPath(folders[0].uri, annotationsPath(this._setName));
   }
 
   private async _loadFromDisk(): Promise<AnnotationsFile> {
