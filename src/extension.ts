@@ -16,6 +16,8 @@ import { searchAnnotations } from './commands/searchAnnotations';
 import { exportFiltered } from './commands/exportFiltered';
 import { GitBranchWatcher } from './gitBranchWatcher';
 import { syncWithBranch } from './commands/syncWithBranch';
+import { AnnotationSnapshotProvider, SNAPSHOT_SCHEME } from './annotationSnapshotProvider';
+import { showStaleDiff } from './commands/showStaleDiff';
 import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -63,6 +65,17 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.syncWithBranch',
       () => syncWithBranch(store, decorations, branchWatcher, updateTreeViewTitle)),
+
+    vscode.commands.registerCommand(
+      'annotate.showStaleDiff',
+      (nodeOrAnnotation?: AnnotationNode | Annotation) =>
+        showStaleDiff(store, nodeOrAnnotation)
+    ),
+
+    vscode.workspace.registerTextDocumentContentProvider(
+      SNAPSHOT_SCHEME,
+      new AnnotationSnapshotProvider(store)
+    ),
 
     // Notify user when git HEAD changes so they can switch annotation sets.
     branchWatcher.onDidChangeBranch(async branch => {

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Annotation, AnnotationTag } from './types';
 import { AnnotationStore } from './annotationStore';
+import { isAnnotationStale } from './staleDetector';
 
 const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
   bug:       'errorForeground',
@@ -14,6 +15,16 @@ const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
 const ALL_TAGS: (AnnotationTag | '_default')[] = [
   'bug', 'question', 'todo', 'context', 'important', '_default',
 ];
+
+/** Amber border used for annotations whose source lines have changed since creation. */
+const STALE_DECORATION = vscode.window.createTextEditorDecorationType({
+  backgroundColor: new vscode.ThemeColor('editor.wordHighlightBackground'),
+  borderWidth: '0 0 0 3px',
+  borderStyle: 'dashed',
+  borderColor: new vscode.ThemeColor('editorWarning.foreground'),
+  overviewRulerColor: new vscode.ThemeColor('editorWarning.foreground'),
+  overviewRulerLane: vscode.OverviewRulerLane.Left,
+});
 
 function makeDecorationType(colorToken: string): vscode.TextEditorDecorationType {
   return vscode.window.createTextEditorDecorationType({
@@ -38,19 +49,27 @@ export class DecorationsManager {
   async refresh(editor: vscode.TextEditor): Promise<void> {
     const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
     const annotations = await this.store.getForFile(relPath);
+    const docText = editor.document.getText();
 
-    // Group by tag key
+    // Group by tag key; stale annotations get their own amber decoration instead.
     const buckets = new Map<AnnotationTag | '_default', vscode.Range[]>();
     for (const tag of ALL_TAGS) { buckets.set(tag, []); }
+    const staleRanges: vscode.Range[] = [];
 
     for (const a of annotations) {
-      const key: AnnotationTag | '_default' = a.tag ?? '_default';
-      buckets.get(key)!.push(annotationToRange(a));
+      const range = annotationToRange(a);
+      if (isAnnotationStale(a, docText)) {
+        staleRanges.push(range);
+      } else {
+        const key: AnnotationTag | '_default' = a.tag ?? '_default';
+        buckets.get(key)!.push(range);
+      }
     }
 
     for (const tag of ALL_TAGS) {
       editor.setDecorations(this.types.get(tag)!, buckets.get(tag)!);
     }
+    editor.setDecorations(STALE_DECORATION, staleRanges);
   }
 
   clearAll(): void {
@@ -58,6 +77,7 @@ export class DecorationsManager {
       for (const type of this.types.values()) {
         editor.setDecorations(type, []);
       }
+      editor.setDecorations(STALE_DECORATION, []);
     }
   }
 
@@ -65,6 +85,7 @@ export class DecorationsManager {
     for (const type of this.types.values()) {
       type.dispose();
     }
+    STALE_DECORATION.dispose();
   }
 }
 

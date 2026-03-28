@@ -21,6 +21,12 @@ export interface Annotation {
   comment: string;
   /** Optional tag for categorising annotations. */
   tag?: AnnotationTag;
+  /**
+   * Raw text of the annotated lines captured at creation time (lines joined
+   * with `\n`). Used to detect when the underlying source has changed since
+   * the annotation was written. Absent on annotations created before P4.4.
+   */
+  contentSnapshot?: string;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 }

@@ -39,6 +39,13 @@ export async function annotateSelection(
     endLine -= 1;
   }
 
+  // Capture the exact text of the annotated lines so we can detect staleness later.
+  const snapshotRange = new vscode.Range(
+    new vscode.Position(selection.start.line, 0),
+    new vscode.Position(endLine, Number.MAX_SAFE_INTEGER)
+  );
+  const contentSnapshot = editor.document.getText(snapshotRange);
+
   await store.add({
     id: uuidv4(),
     fileUri,
@@ -50,6 +57,7 @@ export async function annotateSelection(
     },
     comment: result.comment,
     ...(result.tag ? { tag: result.tag } : {}),
+    contentSnapshot,
     createdAt: now,
     updatedAt: now,
   });

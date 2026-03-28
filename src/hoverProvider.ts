@@ -68,7 +68,10 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
       // Action buttons
       const editLink   = commandLink('$(pencil) Edit',   'annotate.editAnnotation',   ann);
       const deleteLink = commandLink('$(trash) Delete', 'annotate.deleteAnnotation', ann);
-      md.appendMarkdown(`\n\n${editLink} &nbsp; ${deleteLink}`);
+      const diffLink   = ann.contentSnapshot
+        ? ' &nbsp; ' + commandLink('$(diff) Diff', 'annotate.showStaleDiff', ann)
+        : '';
+      md.appendMarkdown(`\n\n${editLink} &nbsp; ${deleteLink}${diffLink}`);
     });
 
     return new vscode.Hover([md], hoverRange);
