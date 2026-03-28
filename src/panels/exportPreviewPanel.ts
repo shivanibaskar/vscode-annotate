@@ -30,14 +30,29 @@ export class ExportPreviewPanel {
 
     this.panel.webview.onDidReceiveMessage(msg => {
       if (msg.command === 'copy') {
-        vscode.env.clipboard.writeText(this.content);
-        vscode.window.showInformationMessage('Annotations copied to clipboard.');
+        void ExportPreviewPanel.copyToClipboard(this.content);
       }
     });
 
     this.panel.onDidDispose(() => {
       ExportPreviewPanel.current = undefined;
     });
+  }
+
+  /**
+   * Writes `content` to the system clipboard and shows a notification with
+   * guidance on how to use the copied context.
+   *
+   * Extracted as a static method so tests can call it directly without
+   * needing a live webview panel.
+   *
+   * @param content The annotation export text to copy.
+   */
+  static async copyToClipboard(content: string): Promise<void> {
+    await vscode.env.clipboard.writeText(content);
+    vscode.window.showInformationMessage(
+      'Annotate: Annotations copied to clipboard — paste into your LLM prompt as context, then add your question.'
+    );
   }
 
   static show(content: string): void {

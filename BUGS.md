@@ -8,6 +8,43 @@ _(none)_
 
 ## Fixed
 
+### BUG-003 — No user-facing prompt when annotations are sent/copied for context
+
+**Status:** Fixed
+**Reported:** 2026-03-28
+**Fixed:** 2026-03-28
+
+**Description:**
+Clipboard copy notification gave no guidance on what to do with the copied text.
+
+**Fix:**
+Updated notification to: *"Annotations copied to clipboard — paste into your LLM prompt as context, then add your question."*
+
+**Affected files:**
+- `src/panels/exportPreviewPanel.ts`
+
+---
+
+### BUG-002 — Copy to clipboard not awaited and untested
+
+**Status:** Fixed
+**Reported:** 2026-03-28
+**Fixed:** 2026-03-28
+
+**Description:**
+`vscode.env.clipboard.writeText` was not `await`ed in the webview message handler, and there was no test coverage for the clipboard path because `ExportPreviewPanel.show` was always mocked in tests.
+
+**Fix:**
+- Extracted clipboard logic into a public static `ExportPreviewPanel.copyToClipboard(content)` method that `await`s `writeText`
+- `onDidReceiveMessage` now delegates to this method via `void ExportPreviewPanel.copyToClipboard(...)`
+- Added `src/test/suite/exportPreviewPanel.test.ts` with 5 tests covering write content, info message, and edge cases
+
+**Affected files:**
+- `src/panels/exportPreviewPanel.ts`
+- `src/test/suite/exportPreviewPanel.test.ts` (new)
+
+---
+
 ### BUG-001 — Whole-line highlight even for single-word selections
 
 **Status:** Fixed (see commit below)
