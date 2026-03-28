@@ -20,53 +20,80 @@ export interface AnnotationInputResult {
 }
 
 /**
- * Shows a single combined QuickPick where the user types their comment in the
- * input field and selects a tag from the list below — replacing the previous
- * two-step InputBox → QuickPick flow.
+ * Two-step input flow:
+ *   1. InputBox  — type the annotation comment (validated non-empty)
+ *   2. QuickPick — pick a tag from the list (Escape = save with no tag)
  *
- * @param opts.title       Title shown at the top of the picker.
- * @param opts.initialComment  Pre-filled comment text (for edits).
- * @param opts.initialTag  Pre-selected tag (for edits).
+ * Escape on step 1 cancels the whole operation.
+ * Escape on step 2 saves without a tag rather than losing the comment.
+ *
+ * @param opts.title          Title shown at the top of both pickers.
+ * @param opts.initialComment Pre-filled comment text (for edits).
+ * @param opts.initialTag     Pre-selected tag (for edits).
  * @returns The comment and tag, or `undefined` if the user cancelled.
  */
-export function showAnnotationInput(opts: {
+export async function showAnnotationInput(opts: {
   title: string;
   initialComment?: string;
   initialTag?: AnnotationTag;
 }): Promise<AnnotationInputResult | undefined> {
+  // ── Step 1: comment ──────────────────────────────────────────────────────
+  const comment = await vscode.window.showInputBox({
+    title: opts.title,
+    prompt: 'Enter your annotation comment',
+    value: opts.initialComment ?? '',
+    ignoreFocusOut: true,
+    validateInput: value =>
+      value.trim() ? undefined : 'Comment cannot be empty',
+  });
+
+  if (comment === undefined) {
+    return undefined; // user pressed Escape → cancel entirely
+  }
+
+  // ── Step 2: tag ──────────────────────────────────────────────────────────
+  const tag = await pickTag(opts.title, opts.initialTag);
+
+  return { comment: comment.trim(), tag };
+}
+
+/**
+ * Shows a QuickPick for selecting a tag.
+ * Pressing Escape resolves with `undefined` (no tag) rather than cancelling,
+ * so the caller doesn't lose the comment the user already entered.
+ *
+ * @param title      Title shown at the top of the picker.
+ * @param initialTag Tag to pre-highlight (for edits).
+ */
+function pickTag(
+  title: string,
+  initialTag?: AnnotationTag
+): Promise<AnnotationTag | undefined> {
   return new Promise(resolve => {
     const qp = vscode.window.createQuickPick<TagQuickPickItem>();
-    qp.title = opts.title;
-    qp.placeholder = 'Type your annotation comment…';
-    qp.value = opts.initialComment ?? '';
+    qp.title = title;
+    qp.placeholder = 'Select a tag — Escape saves without a tag';
     qp.items = TAG_ITEMS;
     qp.ignoreFocusOut = true;
 
-    // Pre-select the current tag (default to "No tag").
-    const initial = TAG_ITEMS.find(i => i.tag === opts.initialTag) ?? TAG_ITEMS[0];
+    // Pre-highlight the current tag so edits don't reset it.
+    const initial = TAG_ITEMS.find(i => i.tag === initialTag) ?? TAG_ITEMS[0];
     qp.activeItems = [initial];
 
-    // Prevent the input text from filtering the tag list — always show all options.
-    const sub = qp.onDidChangeValue(() => {
-      qp.items = TAG_ITEMS;
-    });
+    let accepted = false;
 
     qp.onDidAccept(() => {
-      const comment = qp.value.trim();
+      accepted = true;
       const tag = qp.activeItems[0]?.tag;
       qp.hide();
-      if (!comment) {
-        // Empty comment — treated as cancel; caller can warn.
-        resolve({ comment: '', tag: undefined });
-      } else {
-        resolve({ comment, tag });
-      }
+      resolve(tag);
     });
 
     qp.onDidHide(() => {
-      sub.dispose();
       qp.dispose();
-      resolve(undefined);
+      if (!accepted) {
+        resolve(undefined); // Escape on tag step = save with no tag
+      }
     });
 
     qp.show();
