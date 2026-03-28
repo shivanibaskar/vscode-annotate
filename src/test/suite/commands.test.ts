@@ -232,13 +232,16 @@ suite('clearAnnotations command', () => {
   teardown(async () => {
     await store.clear();
     decorations.dispose();
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   });
 
-  test('clears all annotations when user confirms', async () => {
+  test('clears all annotations when user chooses Clear Workspace', async () => {
     await store.add(seed);
 
-    await withMock(vscode.window, 'showWarningMessage', () => Promise.resolve('Clear') as any, async () => {
-      await clearAnnotations(store, decorations);
+    await withMock(vscode.window, 'showQuickPick', () => Promise.resolve({ label: '$(trash) Clear Workspace', action: 'workspace' }) as any, async () => {
+      await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+        await clearAnnotations(store, decorations);
+      });
     });
 
     const data = await store.load();
@@ -248,12 +251,45 @@ suite('clearAnnotations command', () => {
   test('leaves annotations untouched when user dismisses the dialog', async () => {
     await store.add(seed);
 
-    await withMock(vscode.window, 'showWarningMessage', () => Promise.resolve(undefined) as any, async () => {
+    await withMock(vscode.window, 'showQuickPick', () => Promise.resolve(undefined) as any, async () => {
       await clearAnnotations(store, decorations);
     });
 
     const data = await store.load();
     assert.strictEqual(data.annotations.length, 1);
+  });
+
+  test('clears only this file\'s annotations when user chooses Clear This File', async () => {
+    const doc = await vscode.workspace.openTextDocument({ content: 'hello\n' });
+    const editor = await vscode.window.showTextDocument(doc);
+    const fileUri = vscode.workspace.asRelativePath(editor.document.uri, false);
+
+    await store.add({ ...seed, id: 'file-ann', fileUri });
+    await store.add({ ...seed, id: 'other-ann', fileUri: 'src/other.ts' });
+
+    await withMock(vscode.window, 'showQuickPick', () => Promise.resolve({ label: '$(file) Clear This File', action: 'file' }) as any, async () => {
+      await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+        await clearAnnotations(store, decorations, editor);
+      });
+    });
+
+    const data = await store.load();
+    assert.strictEqual(data.annotations.length, 1);
+    assert.strictEqual(data.annotations[0].id, 'other-ann');
+  });
+
+  test('restores annotations when user clicks Undo after Clear Workspace', async () => {
+    await store.add(seed);
+
+    await withMock(vscode.window, 'showQuickPick', () => Promise.resolve({ label: '$(trash) Clear Workspace', action: 'workspace' }) as any, async () => {
+      await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve('Undo') as any, async () => {
+        await clearAnnotations(store, decorations);
+      });
+    });
+
+    const data = await store.load();
+    assert.strictEqual(data.annotations.length, 1);
+    assert.strictEqual(data.annotations[0].id, 'seed');
   });
 });
 
