@@ -34,6 +34,11 @@ async function withMock<T extends object, K extends keyof T>(
   }
 }
 
+/** Returns a showQuickPick mock that always resolves with the "None" tag item. */
+function noTagPick() {
+  return () => Promise.resolve({ label: '$(circle-slash) None', tag: undefined });
+}
+
 // ---------------------------------------------------------------------------
 // annotateSelection
 // ---------------------------------------------------------------------------
@@ -59,7 +64,9 @@ suite('annotateSelection command', () => {
     editor.selection = new vscode.Selection(0, 0, 1, 8);
 
     await withMock(vscode.window, 'showInputBox', () => Promise.resolve('my note'), async () => {
-      await annotateSelection(store, decorations);
+      await withMock(vscode.window, 'showQuickPick', noTagPick() as any, async () => {
+        await annotateSelection(store, decorations);
+      });
     });
 
     await store.flush();
@@ -70,12 +77,43 @@ suite('annotateSelection command', () => {
     assert.strictEqual(data.annotations[0].range.end, 1);
   });
 
+  test('saves annotation with selected tag', async () => {
+    const editor = await openDocument('const x = 1;\n');
+    editor.selection = new vscode.Selection(0, 0, 0, 13);
+
+    await withMock(vscode.window, 'showInputBox', () => Promise.resolve('found a bug'), async () => {
+      await withMock(vscode.window, 'showQuickPick',
+        () => Promise.resolve({ label: '$(bug) Bug', tag: 'bug' }) as any,
+        async () => {
+          await annotateSelection(store, decorations);
+        });
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(data.annotations[0].tag, 'bug');
+  });
+
   test('does not save when user cancels the input box', async () => {
     const editor = await openDocument('hello\n');
     editor.selection = new vscode.Selection(0, 0, 0, 5);
 
     await withMock(vscode.window, 'showInputBox', () => Promise.resolve(undefined), async () => {
       await annotateSelection(store, decorations);
+    });
+
+    const data = await store.load();
+    assert.strictEqual(data.annotations.length, 0);
+  });
+
+  test('does not save when user cancels the tag quick-pick', async () => {
+    const editor = await openDocument('hello\n');
+    editor.selection = new vscode.Selection(0, 0, 0, 5);
+
+    await withMock(vscode.window, 'showInputBox', () => Promise.resolve('some note'), async () => {
+      await withMock(vscode.window, 'showQuickPick', () => Promise.resolve(undefined) as any, async () => {
+        await annotateSelection(store, decorations);
+      });
     });
 
     const data = await store.load();
@@ -125,13 +163,14 @@ suite('annotateSelection command', () => {
     editor.selection = new vscode.Selection(0, 0, 0, 13);
 
     await withMock(vscode.window, 'showInputBox', () => Promise.resolve('path check'), async () => {
-      await annotateSelection(store, decorations);
+      await withMock(vscode.window, 'showQuickPick', noTagPick() as any, async () => {
+        await annotateSelection(store, decorations);
+      });
     });
 
     await store.flush();
     const data = await store.load();
     assert.strictEqual(data.annotations.length, 1);
-    // Untitled documents produce a path relative to the workspace; just verify it's a string.
     assert.strictEqual(typeof data.annotations[0].fileUri, 'string');
   });
 });
@@ -222,7 +261,6 @@ suite('deleteAnnotation command', () => {
     const doc = await vscode.workspace.openTextDocument({ content: 'hello\n' });
     const editor = await vscode.window.showTextDocument(doc);
     editor.selection = new vscode.Selection(0, 0, 0, 0);
-    // Store is empty — no annotation at cursor
 
     const warnings: string[] = [];
     const warnMock: typeof vscode.window.showWarningMessage = (msg: string) => {
@@ -281,8 +319,10 @@ suite('editAnnotation command', () => {
 
     const node = new AnnotationNode(ann);
     await withMock(vscode.window, 'showInputBox', () => Promise.resolve('edited comment'), async () => {
-      await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
-        await editAnnotation(store, decorations, node);
+      await withMock(vscode.window, 'showQuickPick', noTagPick() as any, async () => {
+        await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+          await editAnnotation(store, decorations, node);
+        });
       });
     });
 
@@ -292,6 +332,44 @@ suite('editAnnotation command', () => {
     assert.strictEqual(data.annotations[0].id, 'edit-1');
   });
 
+  test('updates tag when a tag is selected', async () => {
+    const ann = { id: 'edit-tag', fileUri: 'src/foo.ts', range: { start: 0, end: 0 }, comment: 'check', createdAt: now, updatedAt: now };
+    await store.add(ann);
+
+    const node = new AnnotationNode(ann);
+    await withMock(vscode.window, 'showInputBox', () => Promise.resolve('check'), async () => {
+      await withMock(vscode.window, 'showQuickPick',
+        () => Promise.resolve({ label: '$(question) Question', tag: 'question' }) as any,
+        async () => {
+          await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+            await editAnnotation(store, decorations, node);
+          });
+        });
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(data.annotations[0].tag, 'question');
+  });
+
+  test('clears tag when "None" is selected', async () => {
+    const ann = { id: 'edit-clr', fileUri: 'src/foo.ts', range: { start: 0, end: 0 }, comment: 'check', tag: 'bug' as const, createdAt: now, updatedAt: now };
+    await store.add(ann);
+
+    const node = new AnnotationNode(ann);
+    await withMock(vscode.window, 'showInputBox', () => Promise.resolve('check'), async () => {
+      await withMock(vscode.window, 'showQuickPick', noTagPick() as any, async () => {
+        await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+          await editAnnotation(store, decorations, node);
+        });
+      });
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(data.annotations[0].tag, undefined);
+  });
+
   test('does not update when user cancels input box', async () => {
     const ann = { id: 'edit-2', fileUri: 'src/foo.ts', range: { start: 0, end: 0 }, comment: 'original', createdAt: now, updatedAt: now };
     await store.add(ann);
@@ -299,6 +377,21 @@ suite('editAnnotation command', () => {
     const node = new AnnotationNode(ann);
     await withMock(vscode.window, 'showInputBox', () => Promise.resolve(undefined), async () => {
       await editAnnotation(store, decorations, node);
+    });
+
+    const data = await store.load();
+    assert.strictEqual(data.annotations[0].comment, 'original');
+  });
+
+  test('does not update when user cancels tag quick-pick', async () => {
+    const ann = { id: 'edit-5', fileUri: 'src/foo.ts', range: { start: 0, end: 0 }, comment: 'original', createdAt: now, updatedAt: now };
+    await store.add(ann);
+
+    const node = new AnnotationNode(ann);
+    await withMock(vscode.window, 'showInputBox', () => Promise.resolve('new comment'), async () => {
+      await withMock(vscode.window, 'showQuickPick', () => Promise.resolve(undefined) as any, async () => {
+        await editAnnotation(store, decorations, node);
+      });
     });
 
     const data = await store.load();
@@ -336,8 +429,10 @@ suite('editAnnotation command', () => {
       capturedOptions = opts;
       return Promise.resolve('pre-fill me'); // return unchanged
     }, async () => {
-      await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
-        await editAnnotation(store, decorations, node);
+      await withMock(vscode.window, 'showQuickPick', noTagPick() as any, async () => {
+        await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+          await editAnnotation(store, decorations, node);
+        });
       });
     });
 
@@ -354,8 +449,10 @@ suite('editAnnotation command', () => {
     await store.add(ann);
 
     await withMock(vscode.window, 'showInputBox', () => Promise.resolve('new comment'), async () => {
-      await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
-        await editAnnotation(store, decorations, undefined);
+      await withMock(vscode.window, 'showQuickPick', noTagPick() as any, async () => {
+        await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+          await editAnnotation(store, decorations, undefined);
+        });
       });
     });
 

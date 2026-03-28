@@ -115,4 +115,110 @@ suite('exportForLLM', () => {
     await exportForLLM(store);
     assert.ok(!lastShownContent.includes('TAG:'), 'Expected no TAG line in output');
   });
+
+  test('default template wraps output in === markers', async () => {
+    await store.add({
+      id: 'tmpl-default',
+      fileUri: 'src/a.ts',
+      range: { start: 0, end: 0 },
+      comment: 'note',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    await exportForLLM(store);
+    assert.ok(lastShownContent.includes('=== ANNOTATED CODE CONTEXT ==='), 'Expected default header');
+    assert.ok(lastShownContent.includes('=== END OF ANNOTATIONS ==='), 'Expected default footer');
+  });
+
+  test('claude template wraps output in XML tags', async () => {
+    await store.add({
+      id: 'tmpl-claude',
+      fileUri: 'src/a.ts',
+      range: { start: 0, end: 0 },
+      comment: 'note',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // Override config to use claude template
+    const origGet = vscode.workspace.getConfiguration;
+    (vscode.workspace as any).getConfiguration = (section?: string) => {
+      const real = origGet.call(vscode.workspace, section);
+      return {
+        get: (key: string, def?: any) => {
+          if (key === 'promptTemplate') { return 'claude'; }
+          return real.get(key, def);
+        },
+      };
+    };
+
+    try {
+      await exportForLLM(store);
+      assert.ok(lastShownContent.includes('<annotated_context>'), 'Expected Claude XML header');
+      assert.ok(lastShownContent.includes('</annotated_context>'), 'Expected Claude XML footer');
+    } finally {
+      (vscode.workspace as any).getConfiguration = origGet;
+    }
+  });
+
+  test('gpt template wraps output in fenced block', async () => {
+    await store.add({
+      id: 'tmpl-gpt',
+      fileUri: 'src/a.ts',
+      range: { start: 0, end: 0 },
+      comment: 'note',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const origGet = vscode.workspace.getConfiguration;
+    (vscode.workspace as any).getConfiguration = (section?: string) => {
+      const real = origGet.call(vscode.workspace, section);
+      return {
+        get: (key: string, def?: any) => {
+          if (key === 'promptTemplate') { return 'gpt'; }
+          return real.get(key, def);
+        },
+      };
+    };
+
+    try {
+      await exportForLLM(store);
+      assert.ok(lastShownContent.includes('```annotated-context'), 'Expected GPT fenced header');
+    } finally {
+      (vscode.workspace as any).getConfiguration = origGet;
+    }
+  });
+
+  test('custom template uses user-defined header and footer', async () => {
+    await store.add({
+      id: 'tmpl-custom',
+      fileUri: 'src/a.ts',
+      range: { start: 0, end: 0 },
+      comment: 'note',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const origGet = vscode.workspace.getConfiguration;
+    (vscode.workspace as any).getConfiguration = (section?: string) => {
+      const real = origGet.call(vscode.workspace, section);
+      return {
+        get: (key: string, def?: any) => {
+          if (key === 'promptTemplate') { return 'custom'; }
+          if (key === 'promptTemplateCustom') { return 'MY HEADER|||MY FOOTER'; }
+          return real.get(key, def);
+        },
+      };
+    };
+
+    try {
+      await exportForLLM(store);
+      assert.ok(lastShownContent.includes('MY HEADER'), 'Expected custom header');
+      assert.ok(lastShownContent.includes('MY FOOTER'), 'Expected custom footer');
+    } finally {
+      (vscode.workspace as any).getConfiguration = origGet;
+    }
+  });
 });

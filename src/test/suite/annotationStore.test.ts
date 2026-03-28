@@ -173,6 +173,71 @@ suite('AnnotationStore', () => {
 });
 
 // ---------------------------------------------------------------------------
+// switchSet
+// ---------------------------------------------------------------------------
+
+suite('AnnotationStore.switchSet', () => {
+  let store: AnnotationStore;
+  const now = new Date().toISOString();
+
+  setup(async () => {
+    store = new AnnotationStore();
+    await store.clear();
+  });
+
+  teardown(async () => {
+    // Clean up any named set files created during tests
+    store.switchSet('default');
+    await store.clear();
+  });
+
+  test('default setName is "default"', () => {
+    assert.strictEqual(store.setName, 'default');
+  });
+
+  test('switchSet changes setName', () => {
+    store.switchSet('my-set');
+    assert.strictEqual(store.setName, 'my-set');
+  });
+
+  test('switchSet fires onDidChange', () => {
+    let fired = false;
+    store.onDidChange(() => { fired = true; });
+    store.switchSet('another-set');
+    assert.strictEqual(fired, true);
+  });
+
+  test('switchSet to same name does not fire onDidChange', () => {
+    let count = 0;
+    store.onDidChange(() => { count++; });
+    store.switchSet('default'); // already 'default'
+    assert.strictEqual(count, 0);
+  });
+
+  test('annotations are isolated between sets', async () => {
+    await store.add({ id: 'default-ann', fileUri: 'src/a.ts', range: { start: 0, end: 0 }, comment: 'in default', createdAt: now, updatedAt: now });
+    await store.flush();
+
+    store.switchSet('other');
+    const otherData = await store.load();
+    assert.strictEqual(otherData.annotations.length, 0, 'Other set should start empty');
+
+    await store.add({ id: 'other-ann', fileUri: 'src/a.ts', range: { start: 0, end: 0 }, comment: 'in other', createdAt: now, updatedAt: now });
+    await store.flush();
+
+    // Switch back and verify default set is untouched
+    store.switchSet('default');
+    const defaultData = await store.load();
+    assert.strictEqual(defaultData.annotations.length, 1);
+    assert.strictEqual(defaultData.annotations[0].id, 'default-ann');
+
+    // Clean up the other set
+    store.switchSet('other');
+    await store.clear();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // shiftAnnotations
 // ---------------------------------------------------------------------------
 
