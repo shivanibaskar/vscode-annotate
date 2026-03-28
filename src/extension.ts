@@ -11,6 +11,7 @@ import { editAnnotation } from './commands/editAnnotation';
 import { deleteAnnotation } from './commands/deleteAnnotation';
 import { exportMarkdown } from './commands/exportMarkdown';
 import { switchAnnotationSet } from './commands/switchAnnotationSet';
+import { exportCurrentFile } from './commands/exportCurrentFile';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -43,6 +44,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.exportMarkdown',
       () => exportMarkdown(store)),
+
+    vscode.commands.registerCommand('annotate.exportCurrentFile',
+      () => exportCurrentFile(store)),
 
     vscode.commands.registerCommand('annotate.switchAnnotationSet',
       () => switchAnnotationSet(store, decorations, name => {
