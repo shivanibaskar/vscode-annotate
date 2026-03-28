@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from './annotationStore';
 import { DecorationsManager } from './decorations';
+import { AnnotationHoverProvider } from './hoverProvider';
 import { annotateSelection } from './commands/annotateSelection';
 import { exportForLLM } from './commands/exportForLLM';
 import { clearAnnotations } from './commands/clearAnnotations';
@@ -34,6 +35,8 @@ export function activate(context: vscode.ExtensionContext): void {
         await decorations.refresh(editor);
       }
     }),
+
+    vscode.languages.registerHoverProvider('*', new AnnotationHoverProvider(store)),
 
     { dispose: () => decorations.dispose() },
   );
