@@ -2,6 +2,16 @@ import * as vscode from 'vscode';
 import { v4 as uuidv4 } from 'uuid';
 import { AnnotationStore } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
+import { AnnotationTag } from '../types';
+
+const TAG_ITEMS: { label: string; tag: AnnotationTag | undefined }[] = [
+  { label: '$(circle-slash) None',     tag: undefined },
+  { label: '$(bug) Bug',               tag: 'bug' },
+  { label: '$(info) Context',          tag: 'context' },
+  { label: '$(question) Question',     tag: 'question' },
+  { label: '$(check) Todo',            tag: 'todo' },
+  { label: '$(star) Important',        tag: 'important' },
+];
 
 export async function annotateSelection(
   store: AnnotationStore,
@@ -33,6 +43,14 @@ export async function annotateSelection(
     return;
   }
 
+  const tagPick = await vscode.window.showQuickPick(TAG_ITEMS, {
+    placeHolder: 'Select a tag (optional — press Escape to skip)',
+    ignoreFocusOut: true,
+  });
+  if (tagPick === undefined) {
+    return; // user cancelled tag step
+  }
+
   const fileUri = vscode.workspace.asRelativePath(editor.document.uri, false);
   const now = new Date().toISOString();
 
@@ -52,6 +70,7 @@ export async function annotateSelection(
       endChar: selection.end.character,
     },
     comment: comment.trim(),
+    ...(tagPick.tag ? { tag: tagPick.tag } : {}),
     createdAt: now,
     updatedAt: now,
   });

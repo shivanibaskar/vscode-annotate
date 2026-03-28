@@ -31,15 +31,25 @@ export class FileNode extends vscode.TreeItem {
   }
 }
 
+const TAG_ICONS: Record<string, string> = {
+  bug:       'bug',
+  context:   'info',
+  question:  'question',
+  todo:      'check',
+  important: 'star',
+};
+
 export class AnnotationNode extends vscode.TreeItem {
   readonly annotation: Annotation;
 
   constructor(annotation: Annotation) {
     super(truncate(annotation.comment), vscode.TreeItemCollapsibleState.None);
     this.annotation = annotation;
-    this.description = lineLabel(annotation.range.start, annotation.range.end);
-    this.tooltip = annotation.comment; // plain string — not MarkdownString, avoids injection
-    this.iconPath = new vscode.ThemeIcon('comment');
+    const tagLabel = annotation.tag ? ` [${annotation.tag}]` : '';
+    this.description = lineLabel(annotation.range.start, annotation.range.end) + tagLabel;
+    this.tooltip = annotation.comment;
+    const iconId = annotation.tag ? (TAG_ICONS[annotation.tag] ?? 'comment') : 'comment';
+    this.iconPath = new vscode.ThemeIcon(iconId);
     this.contextValue = 'annotationNode';
     this.command = {
       command: 'annotate.revealAnnotation',

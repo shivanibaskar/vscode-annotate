@@ -2,8 +2,17 @@ import * as vscode from 'vscode';
 import { AnnotationNode } from '../annotationsTreeProvider';
 import { AnnotationStore } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
-import { Annotation } from '../types';
+import { Annotation, AnnotationTag } from '../types';
 import { getAnnotationAtCursor } from './utils';
+
+const TAG_ITEMS: { label: string; tag: AnnotationTag | undefined }[] = [
+  { label: '$(circle-slash) None',     tag: undefined },
+  { label: '$(bug) Bug',               tag: 'bug' },
+  { label: '$(info) Context',          tag: 'context' },
+  { label: '$(question) Question',     tag: 'question' },
+  { label: '$(check) Todo',            tag: 'todo' },
+  { label: '$(star) Important',        tag: 'important' },
+];
 
 export async function editAnnotation(
   store: AnnotationStore,
@@ -40,7 +49,17 @@ export async function editAnnotation(
     return;
   }
 
-  await store.update({ ...annotation, comment: newComment.trim() });
+  const tagPick = await vscode.window.showQuickPick(TAG_ITEMS, {
+    placeHolder: `Select a tag (current: ${annotation.tag ?? 'none'})`,
+    ignoreFocusOut: true,
+  });
+  if (tagPick === undefined) {
+    return; // user cancelled
+  }
+
+  const updated: Annotation = { ...annotation, comment: newComment.trim() };
+  if (tagPick.tag) { updated.tag = tagPick.tag; } else { delete updated.tag; }
+  await store.update(updated);
 
   const editor = vscode.window.activeTextEditor;
   if (editor) {

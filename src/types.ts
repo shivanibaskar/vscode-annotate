@@ -10,6 +10,8 @@ export interface LineRange {
   endChar?: number;
 }
 
+export type AnnotationTag = 'bug' | 'context' | 'question' | 'todo' | 'important';
+
 export interface Annotation {
   /** UUID v4 — stable identity across edits */
   id: string;
@@ -17,6 +19,8 @@ export interface Annotation {
   fileUri: string;
   range: LineRange;
   comment: string;
+  /** Optional tag for categorising annotations. */
+  tag?: AnnotationTag;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 }

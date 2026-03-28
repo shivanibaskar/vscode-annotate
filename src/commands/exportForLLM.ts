@@ -51,7 +51,8 @@ function formatAnnotation(
   const endLine = range.end + 1;
   const lineLabel = startLine === endLine ? `Line ${startLine}` : `Lines ${startLine}–${endLine}`;
 
-  let block = `  [${lineLabel}]\n  COMMENT: ${comment}\n`;
+  const tagLine = annotation.tag ? `  TAG: ${annotation.tag}\n` : '';
+  let block = `  [${lineLabel}]\n${tagLine}  COMMENT: ${comment}\n`;
 
   if (includeContents && lines) {
     const snippet = lines.slice(range.start, range.end + 1).join('\n');

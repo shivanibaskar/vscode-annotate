@@ -1,39 +1,70 @@
 import * as vscode from 'vscode';
-import { Annotation } from './types';
+import { Annotation, AnnotationTag } from './types';
 import { AnnotationStore } from './annotationStore';
 
+const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
+  bug:       'errorForeground',
+  question:  'notificationsWarningIcon.foreground',
+  todo:      'notificationsInfoIcon.foreground',
+  context:   'editorInfo.foreground',
+  important: 'charts.purple',
+  _default:  'editorInfo.foreground',
+};
+
+const ALL_TAGS: (AnnotationTag | '_default')[] = [
+  'bug', 'question', 'todo', 'context', 'important', '_default',
+];
+
+function makeDecorationType(colorToken: string): vscode.TextEditorDecorationType {
+  return vscode.window.createTextEditorDecorationType({
+    backgroundColor: new vscode.ThemeColor('editor.wordHighlightBackground'),
+    borderWidth: '0 0 0 3px',
+    borderStyle: 'solid',
+    borderColor: new vscode.ThemeColor(colorToken),
+    overviewRulerColor: new vscode.ThemeColor(colorToken),
+    overviewRulerLane: vscode.OverviewRulerLane.Left,
+  });
+}
+
 export class DecorationsManager {
-  private readonly decorationType: vscode.TextEditorDecorationType;
+  private readonly types: Map<AnnotationTag | '_default', vscode.TextEditorDecorationType>;
 
   constructor(private readonly store: AnnotationStore) {
-    this.decorationType = vscode.window.createTextEditorDecorationType({
-      // isWholeLine intentionally omitted — ranges are character-precise when
-      // startChar/endChar are stored, falling back to full-line for old annotations.
-      backgroundColor: new vscode.ThemeColor('editor.wordHighlightBackground'),
-      borderWidth: '0 0 0 3px',
-      borderStyle: 'solid',
-      borderColor: new vscode.ThemeColor('editorInfo.foreground'),
-      overviewRulerColor: new vscode.ThemeColor('editorInfo.foreground'),
-      overviewRulerLane: vscode.OverviewRulerLane.Left,
-    });
+    this.types = new Map(
+      ALL_TAGS.map(tag => [tag, makeDecorationType(TAG_COLORS[tag])])
+    );
   }
 
   async refresh(editor: vscode.TextEditor): Promise<void> {
     const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
     const annotations = await this.store.getForFile(relPath);
 
-    const ranges = annotations.map(a => annotationToRange(a));
-    editor.setDecorations(this.decorationType, ranges);
+    // Group by tag key
+    const buckets = new Map<AnnotationTag | '_default', vscode.Range[]>();
+    for (const tag of ALL_TAGS) { buckets.set(tag, []); }
+
+    for (const a of annotations) {
+      const key: AnnotationTag | '_default' = a.tag ?? '_default';
+      buckets.get(key)!.push(annotationToRange(a));
+    }
+
+    for (const tag of ALL_TAGS) {
+      editor.setDecorations(this.types.get(tag)!, buckets.get(tag)!);
+    }
   }
 
   clearAll(): void {
     for (const editor of vscode.window.visibleTextEditors) {
-      editor.setDecorations(this.decorationType, []);
+      for (const type of this.types.values()) {
+        editor.setDecorations(type, []);
+      }
     }
   }
 
   dispose(): void {
-    this.decorationType.dispose();
+    for (const type of this.types.values()) {
+      type.dispose();
+    }
   }
 }
 
