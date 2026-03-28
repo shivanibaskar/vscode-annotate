@@ -2,4 +2,9 @@ node_modules/
 out/
 .vscode-test/
 *.vsix
+# Annotation files — commit these to share annotations with your team,
+# or keep them gitignored for personal-only annotations.
+# The default set:
 .vscode/annotations.json
+# Named sets (e.g. .vscode/annotations-auth-refactor.json):
+.vscode/annotations-*.json
