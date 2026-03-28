@@ -90,6 +90,11 @@
         "command": "annotate.exportFiltered",
         "title": "Export Filtered Annotations (by @mention)",
         "category": "Annotate"
+      },
+      {
+        "command": "annotate.syncWithBranch",
+        "title": "Use Current Git Branch as Annotation Set",
+        "category": "Annotate"
       }
     ],
     "menus": {

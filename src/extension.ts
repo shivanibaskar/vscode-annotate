@@ -14,11 +14,15 @@ import { switchAnnotationSet } from './commands/switchAnnotationSet';
 import { exportCurrentFile } from './commands/exportCurrentFile';
 import { searchAnnotations } from './commands/searchAnnotations';
 import { exportFiltered } from './commands/exportFiltered';
+import { GitBranchWatcher } from './gitBranchWatcher';
+import { syncWithBranch } from './commands/syncWithBranch';
 import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
   const decorations = new DecorationsManager(store);
+  const branchWatcher = new GitBranchWatcher();
+  context.subscriptions.push(branchWatcher);
   const treeProvider = new AnnotationsTreeProvider(store);
   const treeView = vscode.window.createTreeView('annotate.annotationsView', {
     treeDataProvider: treeProvider,
@@ -56,6 +60,26 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.exportFiltered',
       () => exportFiltered(store)),
+
+    vscode.commands.registerCommand('annotate.syncWithBranch',
+      () => syncWithBranch(store, decorations, branchWatcher, updateTreeViewTitle)),
+
+    // Notify user when git HEAD changes so they can switch annotation sets.
+    branchWatcher.onDidChangeBranch(async branch => {
+      const setName = branch.replace(/[/\\:*?"<>|]/g, '-');
+      const existing = await AnnotationStore.listSets();
+      const hasSet = existing.includes(setName);
+      const msg = hasSet
+        ? `Git branch changed to "${branch}". This branch has its own annotations.`
+        : `Git branch changed to "${branch}".`;
+      const action = hasSet ? 'Switch Annotation Set' : undefined;
+      const choice = action
+        ? await vscode.window.showInformationMessage(msg, action)
+        : undefined;
+      if (choice === 'Switch Annotation Set') {
+        await syncWithBranch(store, decorations, branchWatcher, updateTreeViewTitle);
+      }
+    }),
 
     vscode.commands.registerCommand('annotate.switchAnnotationSet',
       () => switchAnnotationSet(store, decorations, name => {
