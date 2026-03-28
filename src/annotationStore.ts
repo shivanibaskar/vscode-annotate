@@ -90,6 +90,15 @@ export class AnnotationStore {
     this._onDidChange.fire();
   }
 
+  async update(annotation: Annotation): Promise<void> {
+    const data = await this._ensureLoaded();
+    const idx = data.annotations.findIndex(a => a.id === annotation.id);
+    if (idx === -1) { return; }
+    data.annotations[idx] = { ...annotation, updatedAt: new Date().toISOString() };
+    this._scheduleFlush();
+    this._onDidChange.fire();
+  }
+
   async clear(): Promise<void> {
     this._cache = { version: 1, annotations: [] };
     this._scheduleFlush();

@@ -55,6 +55,16 @@
         "command": "annotate.revealAnnotation",
         "title": "Go to Annotation",
         "category": "Annotate"
+      },
+      {
+        "command": "annotate.editAnnotation",
+        "title": "Edit Annotation",
+        "category": "Annotate"
+      },
+      {
+        "command": "annotate.deleteAnnotation",
+        "title": "Delete Annotation",
+        "category": "Annotate"
       }
     ],
     "menus": {
@@ -63,6 +73,28 @@
           "command": "annotate.annotateSelection",
           "when": "editorHasSelection",
           "group": "annotate@1"
+        },
+        {
+          "command": "annotate.editAnnotation",
+          "when": "editorTextFocus",
+          "group": "annotate@2"
+        },
+        {
+          "command": "annotate.deleteAnnotation",
+          "when": "editorTextFocus",
+          "group": "annotate@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "annotate.editAnnotation",
+          "when": "view == annotate.annotationsView && viewItem == annotationNode",
+          "group": "annotate@1"
+        },
+        {
+          "command": "annotate.deleteAnnotation",
+          "when": "view == annotate.annotationsView && viewItem == annotationNode",
+          "group": "annotate@2"
         }
       ],
       "view/title": [

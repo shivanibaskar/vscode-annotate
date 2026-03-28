@@ -2,11 +2,13 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from './annotationStore';
 import { DecorationsManager } from './decorations';
 import { AnnotationHoverProvider } from './hoverProvider';
-import { AnnotationsTreeProvider } from './annotationsTreeProvider';
+import { AnnotationsTreeProvider, AnnotationNode } from './annotationsTreeProvider';
 import { Annotation } from './types';
 import { annotateSelection } from './commands/annotateSelection';
 import { exportForLLM } from './commands/exportForLLM';
 import { clearAnnotations } from './commands/clearAnnotations';
+import { editAnnotation } from './commands/editAnnotation';
+import { deleteAnnotation } from './commands/deleteAnnotation';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -47,6 +49,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
 
     vscode.languages.registerHoverProvider('*', new AnnotationHoverProvider(store)),
+
+    vscode.commands.registerCommand(
+      'annotate.editAnnotation',
+      (node?: AnnotationNode) => editAnnotation(store, decorations, node)
+    ),
+
+    vscode.commands.registerCommand(
+      'annotate.deleteAnnotation',
+      (node?: AnnotationNode) => deleteAnnotation(store, decorations, node)
+    ),
 
     vscode.commands.registerCommand('annotate.refreshAnnotationsView', () => {
       treeProvider.forceRefresh();

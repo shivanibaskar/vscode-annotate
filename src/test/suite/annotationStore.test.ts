@@ -107,6 +107,56 @@ suite('AnnotationStore', () => {
     assert.strictEqual(data.annotations[0].comment, 'survives reload');
   });
 
+  test('update replaces the comment of an existing annotation', async () => {
+    const ann = makeAnnotation({ id: 'upd-1', comment: 'original' });
+    await store.add(ann);
+
+    await store.update({ ...ann, comment: 'updated' });
+    await store.flush();
+
+    const data = await store.load();
+    assert.strictEqual(data.annotations[0].comment, 'updated');
+    assert.strictEqual(data.annotations[0].id, 'upd-1');
+  });
+
+  test('update stamps updatedAt later than createdAt', async () => {
+    const ann = makeAnnotation({ id: 'upd-2' });
+    await store.add(ann);
+
+    // Ensure at least 1ms passes before updating
+    await new Promise(r => setTimeout(r, 2));
+    await store.update({ ...ann, comment: 'changed' });
+    await store.flush();
+
+    const data = await store.load();
+    assert.ok(
+      data.annotations[0].updatedAt > data.annotations[0].createdAt,
+      'updatedAt should be later than createdAt'
+    );
+  });
+
+  test('update with unknown id leaves store unchanged', async () => {
+    const ann = makeAnnotation({ id: 'real' });
+    await store.add(ann);
+
+    await store.update({ ...ann, id: 'ghost', comment: 'noop' });
+
+    const data = await store.load();
+    assert.strictEqual(data.annotations.length, 1);
+    assert.strictEqual(data.annotations[0].comment, 'test comment');
+  });
+
+  test('update fires onDidChange', async () => {
+    const ann = makeAnnotation({ id: 'fire-test' });
+    await store.add(ann);
+
+    let fired = false;
+    store.onDidChange(() => { fired = true; });
+    await store.update({ ...ann, comment: 'changed' });
+
+    assert.strictEqual(fired, true);
+  });
+
   test('concurrent adds do not lose annotations', async () => {
     // Fire 5 adds without awaiting each — they must all land in the cache.
     await Promise.all([
