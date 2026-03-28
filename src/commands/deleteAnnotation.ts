@@ -8,12 +8,15 @@ import { getAnnotationAtCursor } from './utils';
 export async function deleteAnnotation(
   store: AnnotationStore,
   decorations: DecorationsManager,
-  node: AnnotationNode | undefined
+  nodeOrAnnotation: AnnotationNode | Annotation | undefined
 ): Promise<void> {
   let annotation: Annotation | undefined;
 
-  if (node instanceof AnnotationNode) {
-    annotation = node.annotation;
+  if (nodeOrAnnotation instanceof AnnotationNode) {
+    annotation = nodeOrAnnotation.annotation;
+  } else if (nodeOrAnnotation && 'id' in nodeOrAnnotation) {
+    // Called from hover command link — annotation object passed directly as arg
+    annotation = nodeOrAnnotation;
   } else {
     annotation = await getAnnotationAtCursor(store);
     if (!annotation) {

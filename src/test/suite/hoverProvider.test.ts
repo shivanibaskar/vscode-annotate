@@ -115,4 +115,78 @@ suite('AnnotationHoverProvider', () => {
     assert.strictEqual(hover!.range!.start.line, 1, 'Start should be min of all matching ranges');
     assert.strictEqual(hover!.range!.end.line,   4, 'End should be max of all matching ranges');
   });
+
+  test('hover content includes the creation timestamp', async () => {
+    const editor = await openDocument('hello\n');
+    const createdAt = new Date('2025-06-15T10:30:00.000Z').toISOString();
+    await store.add({
+      id: 'ts1',
+      fileUri: vscode.workspace.asRelativePath(editor.document.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'timestamped annotation',
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const hover = await provider.provideHover(editor.document, new vscode.Position(0, 0));
+    assert.ok(hover, 'Expected hover');
+    const combined = (hover.contents as vscode.MarkdownString[]).map(c => c.value).join('');
+    assert.ok(combined.includes('created'), 'Expected "created" label in hover');
+    // Year should appear in the formatted timestamp
+    assert.ok(combined.includes('2025'), 'Expected year from createdAt in hover');
+  });
+
+  test('hover shows "edited" label when annotation has been updated', async () => {
+    const editor = await openDocument('hello\n');
+    const createdAt  = new Date('2025-01-01T00:00:00.000Z').toISOString();
+    const updatedAt  = new Date('2025-06-15T10:30:00.000Z').toISOString();
+    await store.add({
+      id: 'ts2',
+      fileUri: vscode.workspace.asRelativePath(editor.document.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'edited annotation',
+      createdAt,
+      updatedAt,
+    });
+
+    const hover = await provider.provideHover(editor.document, new vscode.Position(0, 0));
+    assert.ok(hover, 'Expected hover');
+    const combined = (hover.contents as vscode.MarkdownString[]).map(c => c.value).join('');
+    assert.ok(combined.includes('edited'), 'Expected "edited" label when updatedAt differs');
+  });
+
+  test('hover content includes Edit and Delete command links', async () => {
+    const editor = await openDocument('hello\n');
+    await store.add({
+      id: 'btn1',
+      fileUri: vscode.workspace.asRelativePath(editor.document.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'has buttons',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const hover = await provider.provideHover(editor.document, new vscode.Position(0, 0));
+    assert.ok(hover, 'Expected hover');
+    const combined = (hover.contents as vscode.MarkdownString[]).map(c => c.value).join('');
+    assert.ok(combined.includes('annotate.editAnnotation'),   'Expected edit command link');
+    assert.ok(combined.includes('annotate.deleteAnnotation'), 'Expected delete command link');
+  });
+
+  test('hover MarkdownString is trusted (required for command links)', async () => {
+    const editor = await openDocument('hello\n');
+    await store.add({
+      id: 'trust1',
+      fileUri: vscode.workspace.asRelativePath(editor.document.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'trust check',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const hover = await provider.provideHover(editor.document, new vscode.Position(0, 0));
+    assert.ok(hover, 'Expected hover');
+    const firstContent = (hover.contents as vscode.MarkdownString[])[0];
+    assert.strictEqual(firstContent.isTrusted, true, 'MarkdownString must be trusted for command URIs');
+  });
 });

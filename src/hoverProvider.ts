@@ -1,5 +1,18 @@
 import * as vscode from 'vscode';
+import { Annotation } from './types';
 import { AnnotationStore } from './annotationStore';
+
+function formatTimestamp(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+}
+
+function commandLink(label: string, command: string, annotation: Annotation): string {
+  const args = encodeURIComponent(JSON.stringify([annotation]));
+  return `[${label}](command:${command}?${args})`;
+}
 
 export class AnnotationHoverProvider implements vscode.HoverProvider {
   constructor(private readonly store: AnnotationStore) {}
@@ -27,15 +40,28 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
     );
 
     const md = new vscode.MarkdownString();
-    md.isTrusted = false;
+    md.isTrusted = true; // required for command URIs in Edit/Delete links
     md.supportThemeIcons = true;
 
     matching.forEach((ann, i) => {
       if (i > 0) {
         md.appendMarkdown('\n\n---\n\n');
       }
-      md.appendMarkdown('$(comment) **Annotation**\n\n');
-      md.appendText(ann.comment); // appendText escapes Markdown — safe for user-supplied content
+
+      // Header: icon + label + timestamp
+      const wasEdited = ann.updatedAt !== ann.createdAt;
+      const timestampLabel = wasEdited
+        ? `edited ${formatTimestamp(ann.updatedAt)}`
+        : `created ${formatTimestamp(ann.createdAt)}`;
+      md.appendMarkdown(`$(comment) **Annotation** &nbsp;*${timestampLabel}*\n\n`);
+
+      // Body: user-supplied comment — appendText escapes Markdown, preventing injection
+      md.appendText(ann.comment);
+
+      // Action buttons
+      const editLink   = commandLink('$(pencil) Edit',   'annotate.editAnnotation',   ann);
+      const deleteLink = commandLink('$(trash) Delete', 'annotate.deleteAnnotation', ann);
+      md.appendMarkdown(`\n\n${editLink} &nbsp; ${deleteLink}`);
     });
 
     return new vscode.Hover([md], hoverRange);

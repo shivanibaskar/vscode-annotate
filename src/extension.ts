@@ -52,12 +52,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand(
       'annotate.editAnnotation',
-      (node?: AnnotationNode) => editAnnotation(store, decorations, node)
+      (nodeOrAnnotation?: AnnotationNode | Annotation) => editAnnotation(store, decorations, nodeOrAnnotation)
     ),
 
     vscode.commands.registerCommand(
       'annotate.deleteAnnotation',
-      (node?: AnnotationNode) => deleteAnnotation(store, decorations, node)
+      (nodeOrAnnotation?: AnnotationNode | Annotation) => deleteAnnotation(store, decorations, nodeOrAnnotation)
     ),
 
     vscode.commands.registerCommand('annotate.refreshAnnotationsView', () => {
