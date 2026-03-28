@@ -65,3 +65,11 @@ Newer to the codebase. Uses the extension to build understanding while reading u
 - [x] **`annotations.json` in source control** — `.gitignore` comments + `docs/team-sharing.md`
 - [x] **Quick-pick search across annotations** — fuzzy search across all comments; Cmd+Shift+F
 - [x] **LLM prompt templates** — `default`, `claude`, `gpt`, `custom` presets via settings
+
+### P4 — Power-user depth
+> Heavy Claude Code users, markdown-heavy workflows
+
+- [x] **Branch-aware annotations** — store annotations per git branch; warn when switching branches would surface a different annotation set; surface "orphaned" annotations when a branch is deleted
+- [x] **Markdown file annotation support** — annotate sections of `.md`, `.mdx`, `.rst` docs the same way as code (READMEs, ADRs, PRDs, RFCs); critical for workflows where docs are half the LLM context
+- [x] **`@mention` tags in comments** — structured inline tags (`@question`, `@todo`, `@critical`, `@stale`) parsed from comment text; filter export to only emit annotations matching a given tag set
+- [x] **Stale annotation diff view** — when annotated source lines have changed since the note was written, show a side-by-side diff of the original captured content vs current; surface as a distinct "stale" gutter state beyond just line-shift detection
