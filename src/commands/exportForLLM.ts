@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
+import { ExportPreviewPanel } from '../panels/exportPreviewPanel';
 
 const LANG_MAP: Record<string, string> = {
   ts: 'typescript', tsx: 'typescript',
@@ -106,6 +107,5 @@ export async function exportForLLM(store: AnnotationStore): Promise<void> {
   parts.push('=== END OF ANNOTATIONS ===');
 
   const output = parts.join('\n');
-  await vscode.env.clipboard.writeText(output);
-  vscode.window.showInformationMessage('Annotations copied to clipboard.');
+  ExportPreviewPanel.show(output);
 }
