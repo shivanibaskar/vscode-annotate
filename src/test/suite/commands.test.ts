@@ -164,6 +164,52 @@ suite('annotateSelection command', () => {
     assert.strictEqual(data.annotations.length, 1);
     assert.strictEqual(typeof data.annotations[0].fileUri, 'string');
   });
+
+  test('captures contentSnapshot of selected lines', async () => {
+    const editor = await openDocument('alpha\nbeta\ngamma\n');
+    // Select lines 0–1 ("alpha" and "beta")
+    editor.selection = new vscode.Selection(0, 0, 1, 4);
+
+    await withInputMock({ comment: 'snapshot test', tag: undefined }, async () => {
+      await annotateSelection(store, decorations);
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(data.annotations.length, 1);
+    assert.ok(
+      data.annotations[0].contentSnapshot !== undefined,
+      'Expected contentSnapshot to be set'
+    );
+    assert.ok(
+      data.annotations[0].contentSnapshot!.includes('alpha'),
+      'Snapshot should contain first selected line'
+    );
+    assert.ok(
+      data.annotations[0].contentSnapshot!.includes('beta'),
+      'Snapshot should contain second selected line'
+    );
+  });
+
+  test('annotates a markdown file and stores the annotation', async () => {
+    const doc = await vscode.workspace.openTextDocument({
+      content: '# Heading\n\nThis is a paragraph.\n',
+      language: 'markdown',
+    });
+    const editor = await vscode.window.showTextDocument(doc);
+    editor.selection = new vscode.Selection(0, 0, 0, 9); // "# Heading"
+
+    await withInputMock({ comment: 'intro heading', tag: 'context' }, async () => {
+      await annotateSelection(store, decorations);
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(data.annotations.length, 1);
+    assert.strictEqual(data.annotations[0].comment, 'intro heading');
+    assert.strictEqual(data.annotations[0].tag, 'context');
+    assert.ok(data.annotations[0].contentSnapshot?.includes('# Heading'));
+  });
 });
 
 // ---------------------------------------------------------------------------
