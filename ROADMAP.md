@@ -37,17 +37,18 @@ Newer to the codebase. Uses the extension to build understanding while reading u
 
 ## Feature Backlog
 
-### P0 — Core UX gaps
+### P0 — Core UX gaps ✅
 > All three personas are blocked without these.
 
-- [ ] **Hover tooltip on decorated lines** — show comment inline on hover
-- [ ] **Annotations sidebar panel** — TreeView listing all annotations by file; click to navigate
-- [ ] **Edit / delete single annotation** — right-click on decorated line or sidebar item
+- [x] **Hover tooltip on decorated lines** — show comment, timestamp, Edit/Delete buttons inline
+- [x] **Annotations sidebar panel** — TreeView grouped by file; click to navigate
+- [x] **Edit / delete single annotation** — sidebar right-click + editor context menu + hover buttons
+- [x] **Keyboard shortcuts** — Cmd+Shift+H annotate, E edit, D delete, X export
 
 ### P1 — Quality & reliability
 > Developer + User personas
 
-- [ ] **Stale annotation detection** — flag/reposition annotations when file lines shift after edits
+- [x] **Stale annotation detection** — `shiftAnnotations` repositions ranges on every document edit
 - [ ] **Export preview** — show formatted output in a WebView before copying to clipboard
 - [ ] **Annotation labels / tags** — e.g. `bug`, `context`, `question`, `todo`
 
