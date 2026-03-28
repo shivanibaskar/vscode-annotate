@@ -14,6 +14,7 @@ import { switchAnnotationSet } from './commands/switchAnnotationSet';
 import { exportCurrentFile } from './commands/exportCurrentFile';
 import { searchAnnotations } from './commands/searchAnnotations';
 import { exportFiltered } from './commands/exportFiltered';
+import { exportToTerminal } from './commands/exportToTerminal';
 import { GitBranchWatcher } from './gitBranchWatcher';
 import { syncWithBranch } from './commands/syncWithBranch';
 import { AnnotationSnapshotProvider, SNAPSHOT_SCHEME } from './annotationSnapshotProvider';
@@ -62,6 +63,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.exportFiltered',
       () => exportFiltered(store)),
+
+    vscode.commands.registerCommand('annotate.exportToTerminal',
+      () => exportToTerminal(store)),
 
     vscode.commands.registerCommand('annotate.syncWithBranch',
       () => syncWithBranch(store, decorations, branchWatcher, updateTreeViewTitle)),

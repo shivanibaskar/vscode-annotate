@@ -100,6 +100,11 @@
         "command": "annotate.showStaleDiff",
         "title": "Show Stale Annotation Diff",
         "category": "Annotate"
+      },
+      {
+        "command": "annotate.exportToTerminal",
+        "title": "Send Annotations to Terminal (Claude Code)",
+        "category": "Annotate"
       }
     ],
     "menus": {
@@ -190,6 +195,12 @@
         "command": "annotate.searchAnnotations",
         "key": "ctrl+shift+f",
         "mac": "cmd+shift+f",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.exportToTerminal",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t",
         "when": "editorTextFocus"
       }
     ],
