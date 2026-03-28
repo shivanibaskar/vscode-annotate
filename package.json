@@ -180,6 +180,23 @@
           "type": "boolean",
           "default": true,
           "description": "Include the annotated lines verbatim in the LLM export."
+        },
+        "annotate.promptTemplate": {
+          "type": "string",
+          "enum": ["default", "claude", "gpt", "custom"],
+          "enumDescriptions": [
+            "Plain text header/footer (=== ANNOTATED CODE CONTEXT ===)",
+            "Claude XML tags (<annotated_context>…</annotated_context>)",
+            "GPT-style fenced block (```annotated-context … ```)",
+            "Custom header/footer defined in annotate.promptTemplateCustom"
+          ],
+          "default": "default",
+          "description": "Wrapping format applied to the LLM export output."
+        },
+        "annotate.promptTemplateCustom": {
+          "type": "string",
+          "default": "",
+          "description": "Custom header and footer separated by '|||'. Example: 'MY HEADER|||MY FOOTER'. Only used when annotate.promptTemplate is 'custom'."
         }
       }
     }

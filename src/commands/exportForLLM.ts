@@ -63,6 +63,36 @@ function formatAnnotation(
   return block;
 }
 
+type PromptTemplate = 'default' | 'claude' | 'gpt' | 'custom';
+
+const TEMPLATE_WRAPPERS: Record<PromptTemplate, { header: string; footer: string }> = {
+  default: {
+    header: '=== ANNOTATED CODE CONTEXT ===',
+    footer: '=== END OF ANNOTATIONS ===',
+  },
+  claude: {
+    header: '<annotated_context>',
+    footer: '</annotated_context>',
+  },
+  gpt: {
+    header: '```annotated-context',
+    footer: '```',
+  },
+  custom: { header: '', footer: '' }, // replaced at runtime with user config
+};
+
+function resolveWrapper(template: PromptTemplate, customTemplate: string): { header: string; footer: string } {
+  if (template === 'custom') {
+    // Expect format "HEADER|||FOOTER"; fall back to default if malformed.
+    const parts = customTemplate.split('|||');
+    if (parts.length === 2) {
+      return { header: parts[0], footer: parts[1] };
+    }
+    return TEMPLATE_WRAPPERS.default;
+  }
+  return TEMPLATE_WRAPPERS[template];
+}
+
 export async function exportForLLM(store: AnnotationStore): Promise<void> {
   const data = await store.load();
 
@@ -71,9 +101,11 @@ export async function exportForLLM(store: AnnotationStore): Promise<void> {
     return;
   }
 
-  const includeContents = vscode.workspace
-    .getConfiguration('annotate')
-    .get<boolean>('includeFileContents', true);
+  const config = vscode.workspace.getConfiguration('annotate');
+  const includeContents = config.get<boolean>('includeFileContents', true);
+  const templateKey = config.get<PromptTemplate>('promptTemplate', 'default');
+  const customTemplate = config.get<string>('promptTemplateCustom', '');
+  const wrapper = resolveWrapper(templateKey, customTemplate);
 
   // Group by file, sorted by path
   const byFile = new Map<string, Annotation[]>();
@@ -85,7 +117,7 @@ export async function exportForLLM(store: AnnotationStore): Promise<void> {
 
   const workspaceName = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? '';
   const parts: string[] = [
-    `=== ANNOTATED CODE CONTEXT ===`,
+    wrapper.header,
     `Generated: ${new Date().toISOString()}`,
     `Workspace: ${workspaceName}`,
     '',
@@ -105,7 +137,7 @@ export async function exportForLLM(store: AnnotationStore): Promise<void> {
     }
   }
 
-  parts.push('=== END OF ANNOTATIONS ===');
+  parts.push(wrapper.footer);
 
   const output = parts.join('\n');
   ExportPreviewPanel.show(output);
