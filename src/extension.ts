@@ -9,6 +9,7 @@ import { exportForLLM } from './commands/exportForLLM';
 import { clearAnnotations } from './commands/clearAnnotations';
 import { editAnnotation } from './commands/editAnnotation';
 import { deleteAnnotation } from './commands/deleteAnnotation';
+import { exportMarkdown } from './commands/exportMarkdown';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -31,6 +32,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.clearAnnotations',
       () => clearAnnotations(store, decorations)),
+
+    vscode.commands.registerCommand('annotate.exportMarkdown',
+      () => exportMarkdown(store)),
 
     vscode.window.onDidChangeActiveTextEditor(editor => {
       if (editor) { decorations.refresh(editor); }

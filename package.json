@@ -57,6 +57,11 @@
         "category": "Annotate"
       },
       {
+        "command": "annotate.exportMarkdown",
+        "title": "Export Annotations as Markdown",
+        "category": "Annotate"
+      },
+      {
         "command": "annotate.editAnnotation",
         "title": "Edit Annotation",
         "category": "Annotate"
@@ -128,6 +133,12 @@
         "command": "annotate.exportForLLM",
         "key": "ctrl+shift+x",
         "mac": "cmd+shift+x",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.exportMarkdown",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m",
         "when": "editorTextFocus"
       }
     ],
