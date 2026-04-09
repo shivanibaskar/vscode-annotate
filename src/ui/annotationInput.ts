@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { AnnotationTag } from '../types';
+import { MAX_COMMENT_LENGTH } from '../annotationStore';
 
 interface TagQuickPickItem extends vscode.QuickPickItem {
   tag: AnnotationTag | undefined;
@@ -40,11 +41,14 @@ export async function showAnnotationInput(opts: {
   // ── Step 1: comment ──────────────────────────────────────────────────────
   const comment = await vscode.window.showInputBox({
     title: opts.title,
-    prompt: 'Enter your annotation comment',
+    prompt: `Enter your annotation comment (max ${MAX_COMMENT_LENGTH} characters)`,
     value: opts.initialComment ?? '',
     ignoreFocusOut: true,
-    validateInput: value =>
-      value.trim() ? undefined : 'Comment cannot be empty',
+    validateInput: value => {
+      if (!value.trim()) { return 'Comment cannot be empty'; }
+      if (value.length > MAX_COMMENT_LENGTH) { return `Comment exceeds ${MAX_COMMENT_LENGTH} character limit`; }
+      return undefined;
+    },
   });
 
   if (comment === undefined) {

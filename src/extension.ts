@@ -20,7 +20,9 @@ import { syncWithBranch } from './commands/syncWithBranch';
 import { AnnotationSnapshotProvider, SNAPSHOT_SCHEME } from './annotationSnapshotProvider';
 import { showStaleDiff } from './commands/showStaleDiff';
 import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
-import { annotateFromMarkdownPreview } from './commands/annotateFromMarkdownPreview';
+import { registerTerminalCloseListener } from './commands/exportToTerminal';
+import { copyFileAnnotations } from './commands/copyFileAnnotations';
+import { copyToClipboard } from './commands/copyToClipboard';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -52,27 +54,57 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // ── Sidebar title / empty-state message ───────────────────────────────────
   // Kept synchronous to remain compatible with syncWithBranch's callback type;
-  // async work runs in a fire-and-forget IIFE.
+  // async work runs in a fire-and-forget IIFE with error logging.
   function updateTreeViewTitle(): void {
     void (async () => {
-      const data = await store.load();
-      if (data.annotations.length === 0) {
-        treeView.message = `No annotations yet — select text and press ${
-          process.platform === 'darwin' ? '⌘' : 'Ctrl'
-        }+Shift+H to start`;
-      } else {
-        treeView.message = store.setName === 'default' ? undefined : `Set: ${store.setName}`;
+      try {
+        const data = await store.load();
+        if (data.annotations.length === 0) {
+          treeView.message = `No annotations yet — select text and press ${
+            process.platform === 'darwin' ? '⌘' : 'Ctrl'
+          }+Shift+H to start`;
+        } else {
+          treeView.message = store.setName === 'default' ? undefined : `Set: ${store.setName}`;
+        }
+      } catch (err) {
+        console.error('[annotate] Failed to update tree view title:', err);
       }
     })();
   }
 
+  registerTerminalCloseListener(context);
   updateTreeViewTitle();
   void updateStatusBar();
 
-  store.onDidChange(() => {
-    updateTreeViewTitle();
-    void updateStatusBar();
-  });
+  /**
+   * Refreshes the built-in Markdown preview if one is currently open, so the
+   * annotation overlay script re-runs and picks up the latest annotation data.
+   * Fails silently — the command may not be available on remote targets.
+   */
+  async function refreshMarkdownPreviewIfOpen(): Promise<void> {
+    const hasPreview = vscode.window.tabGroups.all.some(group =>
+      group.tabs.some(
+        tab =>
+          tab.input instanceof vscode.TabInputWebview &&
+          tab.input.viewType === 'markdown.preview'
+      )
+    );
+    if (!hasPreview) { return; }
+    try {
+      await vscode.commands.executeCommand('markdown.preview.refresh');
+    } catch {
+      // markdown.preview.refresh may not exist on server-side remotes without
+      // the built-in Markdown extension — ignore and carry on.
+    }
+  }
+
+  context.subscriptions.push(
+    store.onDidChange(() => {
+      updateTreeViewTitle();
+      void updateStatusBar();
+      void refreshMarkdownPreviewIfOpen();
+    })
+  );
 
   context.subscriptions.push(treeView, { dispose: () => treeProvider.dispose() });
   context.subscriptions.push({ dispose: () => store.dispose() });
@@ -92,9 +124,6 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand('annotate.annotateSelection',
       () => annotateSelection(store, decorations)),
-
-    vscode.commands.registerCommand('annotate.annotateFromMarkdownPreview',
-      () => annotateFromMarkdownPreview(store, decorations)),
 
     vscode.commands.registerCommand('annotate.exportForLLM',
       () => exportForLLM(store)),
@@ -116,6 +145,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand('annotate.exportToTerminal',
       () => exportToTerminal(store)),
+
+    vscode.commands.registerCommand('annotate.copyFileAnnotations',
+      () => copyFileAnnotations(store)),
+
+    vscode.commands.registerCommand('annotate.copyToClipboard',
+      () => copyToClipboard(store)),
 
     vscode.commands.registerCommand('annotate.syncWithBranch',
       () => syncWithBranch(store, decorations, branchWatcher, updateTreeViewTitle)),

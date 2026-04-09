@@ -1,12 +1,9 @@
 import * as vscode from 'vscode';
+import * as crypto from 'crypto';
 
+/** Returns a cryptographically secure random nonce for use in CSP headers. */
 function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let nonce = '';
-  for (let i = 0; i < 32; i++) {
-    nonce += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return nonce;
+  return crypto.randomBytes(16).toString('hex');
 }
 
 function escapeHtml(text: string): string {
@@ -29,7 +26,9 @@ export class ExportPreviewPanel {
     this.panel.webview.html = this.buildHtml();
 
     this.panel.webview.onDidReceiveMessage(msg => {
-      if (msg.command === 'copy') {
+      // Validate message structure before acting — guards against any unexpected
+      // scripts that might be injected into the webview in the future.
+      if (typeof msg === 'object' && msg !== null && msg.command === 'copy') {
         void ExportPreviewPanel.copyToClipboard(this.content);
       }
     });
@@ -82,8 +81,8 @@ export class ExportPreviewPanel {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
-  <style>
+    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}';">
+  <style nonce="${nonce}">
     body {
       font-family: var(--vscode-editor-font-family, monospace);
       font-size: var(--vscode-editor-font-size, 13px);

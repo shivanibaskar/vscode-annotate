@@ -1,7 +1,12 @@
 import * as vscode from 'vscode';
-import { Annotation, AnnotationsFile } from './types';
+import { Annotation, AnnotationTag, AnnotationsFile } from './types';
 
 const DEFAULT_SET = 'default';
+
+/** Maximum allowed comment length — enforced both here and in the input UI. */
+export const MAX_COMMENT_LENGTH = 5000;
+
+const VALID_TAGS = new Set<AnnotationTag>(['bug', 'context', 'question', 'todo', 'important']);
 
 function annotationsPath(setName: string): string {
   return setName === DEFAULT_SET
@@ -45,7 +50,8 @@ export class AnnotationStore {
           sets.add(DEFAULT_SET);
         } else {
           const m = name.match(/^annotations-(.+)\.json$/);
-          if (m) { sets.add(m[1]); }
+          // Re-validate captured name against the same allowlist used at creation time.
+          if (m && /^[a-zA-Z0-9-]+$/.test(m[1])) { sets.add(m[1]); }
         }
       }
       return [...sets].sort();
@@ -69,14 +75,52 @@ export class AnnotationStore {
     }
     try {
       const raw = await vscode.workspace.fs.readFile(uri);
-      const parsed = JSON.parse(Buffer.from(raw).toString('utf8')) as AnnotationsFile;
-      if (parsed.version !== 1 || !Array.isArray(parsed.annotations)) {
+      const parsed = JSON.parse(Buffer.from(raw).toString('utf8')) as unknown;
+      if (
+        typeof parsed !== 'object' || parsed === null ||
+        (parsed as Record<string, unknown>)['version'] !== 1 ||
+        !Array.isArray((parsed as Record<string, unknown>)['annotations'])
+      ) {
         return { version: 1, annotations: [] };
       }
-      return parsed;
+      // Filter out any individual annotations that fail field-level validation
+      // rather than discarding the entire file, so partial corruption is recoverable.
+      const all = (parsed as Record<string, unknown>)['annotations'] as unknown[];
+      const valid = all.filter(a => this._isValidAnnotation(a)) as Annotation[];
+      return { version: 1, annotations: valid };
     } catch {
       return { version: 1, annotations: [] };
     }
+  }
+
+  /**
+   * Validates a single annotation object loaded from disk.
+   * Rejects entries with out-of-bounds ranges, overlong comments, unknown tags,
+   * or missing required fields so malformed data cannot crash decorations or the UI.
+   *
+   * @param ann The unknown value read from JSON.
+   * @returns `true` if the value satisfies the `Annotation` contract.
+   */
+  private _isValidAnnotation(ann: unknown): ann is Annotation {
+    if (typeof ann !== 'object' || ann === null) { return false; }
+    const a = ann as Record<string, unknown>;
+
+    if (typeof a['id'] !== 'string' || !a['id']) { return false; }
+    if (typeof a['fileUri'] !== 'string' || !a['fileUri']) { return false; }
+    if (typeof a['comment'] !== 'string') { return false; }
+    if (a['comment'].length === 0 || a['comment'].length > MAX_COMMENT_LENGTH) { return false; }
+    if (typeof a['createdAt'] !== 'string' || typeof a['updatedAt'] !== 'string') { return false; }
+
+    const r = a['range'];
+    if (typeof r !== 'object' || r === null) { return false; }
+    const range = r as Record<string, unknown>;
+    if (typeof range['start'] !== 'number' || typeof range['end'] !== 'number') { return false; }
+    if (!Number.isFinite(range['start']) || !Number.isFinite(range['end'])) { return false; }
+    if ((range['start'] as number) < 0 || (range['end'] as number) < (range['start'] as number)) { return false; }
+
+    if (a['tag'] !== undefined && !VALID_TAGS.has(a['tag'] as AnnotationTag)) { return false; }
+
+    return true;
   }
 
   private async _ensureLoaded(): Promise<AnnotationsFile> {
@@ -116,6 +160,7 @@ export class AnnotationStore {
   async save(data: AnnotationsFile): Promise<void> {
     this._cache = data;
     this._scheduleFlush();
+    this._onDidChange.fire();
   }
 
   async add(annotation: Annotation): Promise<void> {
@@ -195,8 +240,9 @@ export class AnnotationStore {
           }
 
           // Annotation is entirely after the change: shift both bounds.
+          // Spread ann.range first to preserve startChar/endChar if present.
           if (start > changeEnd) {
-            return { ...ann, range: { start: start + lineDelta, end: end + lineDelta } };
+            return { ...ann, range: { ...ann.range, start: start + lineDelta, end: end + lineDelta } };
           }
 
           // Annotation overlaps the changed region.
@@ -207,13 +253,13 @@ export class AnnotationStore {
           if (lineDelta > 0 && changeStart <= start) {
             return {
               ...ann,
-              range: { start: start + lineDelta, end: end + lineDelta },
+              range: { ...ann.range, start: start + lineDelta, end: end + lineDelta },
               updatedAt: new Date().toISOString(),
             };
           }
           return {
             ...ann,
-            range: { start, end: end + lineDelta },
+            range: { ...ann.range, start, end: end + lineDelta },
             updatedAt: new Date().toISOString(),
           };
         })

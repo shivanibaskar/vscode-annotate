@@ -60,15 +60,17 @@ export class GitBranchWatcher implements vscode.Disposable {
         this._disposables.push(
           api.onDidOpenRepository(repo => this._watchRepo(repo))
         );
-      } catch {
-        // git API unavailable in this environment
+      } catch (err) {
+        console.warn('[annotate] Failed to initialize git branch watcher:', err);
       }
     };
 
     if (gitExt.isActive) {
       init();
     } else {
-      gitExt.activate().then(init, () => { /* silently ignore activation failure */ });
+      gitExt.activate().then(init, (err) => {
+        console.warn('[annotate] Failed to activate git extension:', err);
+      });
     }
   }
 
