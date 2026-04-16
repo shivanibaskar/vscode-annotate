@@ -4,10 +4,21 @@
   "description": "Annotate code and markdown selections with comments and tags, then export them as structured LLM context.",
   "version": "0.1.0",
   "publisher": "vscode-annotate",
+  "icon": "media/logo.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shivanibaskar/vscode-annotate"
+  },
+  "license": "MIT",
+  "keywords": ["llm", "annotation", "ai", "context", "code review", "chatgpt", "claude"],
+  "galleryBanner": {
+    "color": "#CC5529",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.88.0"
   },
-  "categories": ["Other"],
+  "categories": ["Other", "Education"],
   "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
@@ -16,7 +27,7 @@
         {
           "id": "annotate-sidebar",
           "title": "LLM Annotator",
-          "icon": "media/annotate-icon.svg"
+          "icon": "media/logo.svg"
         }
       ]
     },
@@ -114,9 +125,16 @@
         "category": "Annotate"
       },
       {
-        "command": "annotate.annotateFromMarkdownPreview",
-        "title": "Annotate Section (Markdown Preview)",
-        "category": "Annotate"
+        "command": "annotate.copyFileAnnotations",
+        "title": "Copy File Annotations to Clipboard",
+        "category": "Annotate",
+        "icon": "$(clippy)"
+      },
+      {
+        "command": "annotate.copyToClipboard",
+        "title": "Copy All Annotations to Clipboard",
+        "category": "Annotate",
+        "icon": "$(clippy)"
       }
     ],
     "menus": {
@@ -145,6 +163,11 @@
           "command": "annotate.clearAnnotations",
           "when": "editorTextFocus",
           "group": "annotate@5"
+        },
+        {
+          "command": "annotate.copyFileAnnotations",
+          "when": "editorTextFocus",
+          "group": "annotate@6"
         }
       ],
       "view/item/context": [
@@ -162,12 +185,6 @@
           "command": "annotate.showStaleDiff",
           "when": "view == annotate.annotationsView && viewItem == annotationNode",
           "group": "annotate@3"
-        }
-      ],
-      "commandPalette": [
-        {
-          "command": "annotate.annotateFromMarkdownPreview",
-          "when": "activeWebviewPanelId == 'markdown.preview'"
         }
       ],
       "view/title": [
@@ -237,11 +254,14 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "annotate.annotateFromMarkdownPreview",
-        "key": "ctrl+shift+h",
-        "mac": "cmd+shift+h",
-        "when": "activeWebviewPanelId == 'markdown.preview'"
+        "command": "annotate.copyToClipboard",
+        "key": "ctrl+shift+c",
+        "mac": "cmd+shift+c",
+        "when": "editorTextFocus"
       }
+    ],
+    "markdown.previewScripts": [
+      "./media/annotationPreview.js"
     ],
     "configuration": {
       "title": "Annotate for LLM",
@@ -267,6 +287,17 @@
           "type": "string",
           "default": "",
           "description": "Custom header and footer separated by '|||'. Example: 'MY HEADER|||MY FOOTER'. Only used when annotate.promptTemplate is 'custom'."
+        },
+        "annotate.exportPreamble": {
+          "type": "string",
+          "default": "Review the following annotated code and address each note in context.",
+          "description": "Framing prompt prepended before the annotation block in every export. Helps the LLM understand the task without retyping it each session. Set to an empty string to disable."
+        },
+        "annotate.exportContextLines": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Number of lines above and below each annotated range to include in the export. Gives the LLM surrounding context without requiring a wider selection. Set to 0 to disable. Context appears in a separate CONTEXT BEFORE/AFTER block (plain templates) or <context> element (claude template)."
         },
         "annotate.sidebarSortMode": {
           "type": "string",
