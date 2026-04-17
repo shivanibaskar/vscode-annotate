@@ -170,6 +170,30 @@ suite('AnnotationStore', () => {
     const data = await store.load();
     assert.strictEqual(data.annotations.length, 5);
   });
+
+  test('concurrent adds on cold cache do not lose annotations', async () => {
+    // Pre-clear via a separate instance so `store` never touches the cache itself.
+    const seeder = new AnnotationStore();
+    await seeder.clear();
+
+    // `coldStore` has never called any method — _cache is null.
+    const coldStore = new AnnotationStore();
+    await Promise.all([
+      coldStore.add(makeAnnotation({ id: 'cold-1' })),
+      coldStore.add(makeAnnotation({ id: 'cold-2' })),
+      coldStore.add(makeAnnotation({ id: 'cold-3' })),
+    ]);
+    await coldStore.flush();
+
+    const data = await coldStore.load();
+    assert.strictEqual(
+      data.annotations.length, 3,
+      'All 3 concurrent cold-start adds must survive'
+    );
+
+    // Cleanup
+    await coldStore.clear();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -342,5 +366,21 @@ suite('AnnotationStore.shiftAnnotations', () => {
     const [ann] = await store.getForFile('src/foo.ts');
     assert.strictEqual(ann.range.start, 1);
     assert.strictEqual(ann.range.end, 1);
+  });
+
+  test('shift preserves startChar and endChar (character-level range data)', async () => {
+    // Annotation with character-level precision at lines 5–6; insert 2 lines before it.
+    await store.add(makeAnnotation({
+      id: 'a',
+      fileUri: 'src/foo.ts',
+      range: { start: 5, end: 6, startChar: 4, endChar: 12 },
+    }));
+    await store.shiftAnnotations('src/foo.ts', [makeChange(1, 1, 'new\nnew\n')]);
+
+    const [ann] = await store.getForFile('src/foo.ts');
+    assert.strictEqual(ann.range.start, 7, 'start should shift by 2');
+    assert.strictEqual(ann.range.end, 8, 'end should shift by 2');
+    assert.strictEqual(ann.range.startChar, 4, 'startChar must be preserved after shift');
+    assert.strictEqual(ann.range.endChar, 12, 'endChar must be preserved after shift');
   });
 });

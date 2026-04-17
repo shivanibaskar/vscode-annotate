@@ -17,6 +17,8 @@ function annotationsPath(setName: string): string {
 export class AnnotationStore {
   private _setName: string = DEFAULT_SET;
   private _cache: AnnotationsFile | null = null;
+  /** Shared in-flight load promise — prevents concurrent callers from each calling _loadFromDisk. */
+  private _loadPromise: Promise<AnnotationsFile> | null = null;
   // All disk writes are chained onto this promise, eliminating concurrent write races.
   private _flushQueue: Promise<void> = Promise.resolve();
 
@@ -34,6 +36,7 @@ export class AnnotationStore {
     if (name === this._setName) { return; }
     this._setName = name;
     this._cache = null;
+    this._loadPromise = null;
     this._onDidChange.fire();
   }
 
@@ -123,11 +126,16 @@ export class AnnotationStore {
     return true;
   }
 
-  private async _ensureLoaded(): Promise<AnnotationsFile> {
-    if (!this._cache) {
-      this._cache = await this._loadFromDisk();
+  private _ensureLoaded(): Promise<AnnotationsFile> {
+    if (this._cache) { return Promise.resolve(this._cache); }
+    if (!this._loadPromise) {
+      this._loadPromise = this._loadFromDisk().then(data => {
+        this._cache = data;
+        this._loadPromise = null;
+        return data;
+      });
     }
-    return this._cache;
+    return this._loadPromise;
   }
 
   private _scheduleFlush(): void {
