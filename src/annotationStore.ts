@@ -148,21 +148,23 @@ export class AnnotationStore {
     return this._loadPromise;
   }
 
-  private _scheduleFlush(): void {
-    this._flushQueue = this._flushQueue.then(() => this._flush());
-  }
-
-  private async _flush(): Promise<void> {
-    if (!this._cache) {
-      return;
-    }
-    const uri = this.getStoreUri();
-    if (!uri) {
-      vscode.window.showErrorMessage('Annotate: No workspace folder is open.');
-      return;
-    }
-    const encoded = Buffer.from(JSON.stringify(this._cache, null, 2), 'utf8');
-    await vscode.workspace.fs.writeFile(uri, encoded);
+  /**
+   * Enqueue a disk write for the given data and URI, both captured by the caller
+   * before any async suspension so that a subsequent `switchSet()` cannot redirect
+   * this write to the wrong file.
+   *
+   * @param uri   The file URI resolved at enqueue time (pre-switchSet).
+   * @param data  The in-memory annotations file to serialise.
+   */
+  private _scheduleFlush(uri: vscode.Uri | undefined, data: AnnotationsFile): void {
+    // Deep-copy the annotations array so mutations after enqueue cannot corrupt the
+    // snapshot (switchSet clears _cache, so the object reference would become stale).
+    const snapshot: AnnotationsFile = { version: data.version, annotations: [...data.annotations] };
+    this._flushQueue = this._flushQueue.then(async () => {
+      if (!uri) { return; }
+      const encoded = Buffer.from(JSON.stringify(snapshot, null, 2), 'utf8');
+      await vscode.workspace.fs.writeFile(uri, encoded);
+    });
   }
 
   /** Wait for all pending disk writes to complete. Useful in tests. */
@@ -176,38 +178,45 @@ export class AnnotationStore {
   }
 
   async save(data: AnnotationsFile): Promise<void> {
+    const uri = this.getStoreUri();
     this._cache = data;
-    this._scheduleFlush();
+    this._scheduleFlush(uri, data);
     this._onDidChange.fire();
   }
 
   async add(annotation: Annotation): Promise<void> {
+    // Capture the URI before any async suspension so that a switchSet() that fires
+    // while we are loading from disk cannot redirect the flush to the wrong file.
+    const uri = this.getStoreUri();
     const data = await this._ensureLoaded();
     data.annotations.push(annotation);
-    this._scheduleFlush();
+    this._scheduleFlush(uri, data);
     this._onDidChange.fire();
   }
 
   async remove(id: string): Promise<void> {
+    const uri = this.getStoreUri();
     const data = await this._ensureLoaded();
     data.annotations = data.annotations.filter(a => a.id !== id);
-    this._scheduleFlush();
+    this._scheduleFlush(uri, data);
     this._onDidChange.fire();
   }
 
   async update(annotation: Annotation): Promise<void> {
+    const uri = this.getStoreUri();
     const data = await this._ensureLoaded();
     const idx = data.annotations.findIndex(a => a.id === annotation.id);
     if (idx === -1) { return; }
     data.annotations[idx] = { ...annotation, updatedAt: new Date().toISOString() };
-    this._scheduleFlush();
+    this._scheduleFlush(uri, data);
     this._onDidChange.fire();
   }
 
   async clear(): Promise<void> {
+    const uri = this.getStoreUri();
     this._cache = { version: 1, annotations: [] };
     this._loadPromise = null;
-    this._scheduleFlush();
+    this._scheduleFlush(uri, this._cache);
     this._onDidChange.fire();
     await this._flushQueue;
   }
@@ -226,6 +235,7 @@ export class AnnotationStore {
     fileUri: string,
     changes: readonly vscode.TextDocumentContentChangeEvent[]
   ): Promise<void> {
+    const uri = this.getStoreUri();
     const data = await this._ensureLoaded();
     if (!data.annotations.some(a => a.fileUri === fileUri)) {
       return;
@@ -288,7 +298,7 @@ export class AnnotationStore {
     }
 
     if (modified) {
-      this._scheduleFlush();
+      this._scheduleFlush(uri, data);
       this._onDidChange.fire();
     }
   }

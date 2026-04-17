@@ -259,6 +259,49 @@ suite('AnnotationStore.switchSet', () => {
     store.switchSet('other');
     await store.clear();
   });
+
+  test('add before switchSet writes to correct set files', async () => {
+    // Pre-clean both sets so prior failed runs leave no stale data.
+    store.switchSet('race-fix-test');
+    await store.clear();
+    store.switchSet('default');
+    await store.clear();
+
+    const now = new Date().toISOString();
+    const ann1 = {
+      id: 'race-default', fileUri: 'a.ts',
+      range: { start: 0, end: 0 }, comment: 'for default',
+      createdAt: now, updatedAt: now,
+    };
+    const ann2 = {
+      id: 'race-other', fileUri: 'b.ts',
+      range: { start: 0, end: 0 }, comment: 'for other',
+      createdAt: now, updatedAt: now,
+    };
+
+    // Schedule flush for default without awaiting, then switch immediately.
+    store.add(ann1);                  // do NOT await — flush is queued but not run
+    store.switchSet('race-fix-test'); // switches _setName before flush executes
+    await store.add(ann2);            // adds to race-fix-test
+    await store.flush();              // drain the entire queue
+
+    // 'default' set must have only ann1
+    const defaultReader = new AnnotationStore();
+    const defaultData = await defaultReader.load();
+    assert.strictEqual(defaultData.annotations.length, 1, 'default set must have exactly 1 annotation');
+    assert.strictEqual(defaultData.annotations[0].id, 'race-default');
+
+    // 'race-fix-test' set must have only ann2
+    const otherReader = new AnnotationStore();
+    otherReader.switchSet('race-fix-test');
+    const otherData = await otherReader.load();
+    assert.strictEqual(otherData.annotations.length, 1, 'other set must have exactly 1 annotation');
+    assert.strictEqual(otherData.annotations[0].id, 'race-other');
+
+    // Cleanup
+    store.switchSet('race-fix-test');
+    await store.clear();
+  });
 });
 
 // ---------------------------------------------------------------------------
