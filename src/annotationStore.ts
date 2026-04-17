@@ -126,11 +126,21 @@ export class AnnotationStore {
     return true;
   }
 
+  /**
+   * Returns (or initiates) a single shared load from disk.
+   * Concurrent callers all receive the same Promise so only one
+   * _loadFromDisk call is ever in flight per set-name.
+   * The result is discarded if switchSet() fires before the load resolves.
+   */
   private _ensureLoaded(): Promise<AnnotationsFile> {
     if (this._cache) { return Promise.resolve(this._cache); }
     if (!this._loadPromise) {
+      const setNameAtLoadTime = this._setName;
       this._loadPromise = this._loadFromDisk().then(data => {
-        this._cache = data;
+        // Discard stale load if switchSet was called while we were loading.
+        if (this._setName === setNameAtLoadTime) {
+          this._cache = data;
+        }
         this._loadPromise = null;
         return data;
       });
@@ -196,6 +206,7 @@ export class AnnotationStore {
 
   async clear(): Promise<void> {
     this._cache = { version: 1, annotations: [] };
+    this._loadPromise = null;
     this._scheduleFlush();
     this._onDidChange.fire();
     await this._flushQueue;
