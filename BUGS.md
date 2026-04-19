@@ -182,6 +182,30 @@ Shallow spread `{ start: start + lineDelta, end: end + lineDelta }` silently dro
 
 ## Fixed
 
+### `_ensureLoaded` cold-start concurrency race — FIXED (2026-04-16)
+
+**Root cause:** `_ensureLoaded()` used a plain `if (!_cache)` check before calling `_loadFromDisk()`. Two concurrent callers on a null cache each initiated independent disk reads; whichever resolved last silently overwrote any mutations the other caller had already applied to the cache.
+**Affected files:** `src/annotationStore.ts`
+**Fix:** Added `_loadPromise` gate — all concurrent callers on a null cache share the same in-flight `_loadFromDisk()` promise. Added set-name snapshot to discard stale load results if `switchSet()` fires mid-flight. Added `_loadPromise = null` to `clear()` to prevent stale load from repopulating a just-cleared cache.
+
+---
+
+### `_scheduleFlush` stale-cache race under `switchSet` — FIXED (2026-04-16)
+
+**Root cause:** `_flush()` captured `this._cache` and `this.getStoreUri()` at execution time, not enqueue time. If `switchSet()` fired between `_scheduleFlush()` and flush execution, the queued flush would write the new set's data to the new set's URI — corrupting both files and losing the original set's pending changes.
+**Affected files:** `src/annotationStore.ts`
+**Fix:** Removed `_flush()`. `_scheduleFlush` now accepts URI and data as parameters captured synchronously before any `await` in each mutating method. Snapshot deep-copies each annotation and its `range` to prevent post-enqueue mutation corruption.
+
+---
+
+### Hover command URIs embedding full Annotation objects — FIXED (2026-04-16)
+
+**Root cause:** `commandLink` in `hoverProvider.ts` serialised the entire `Annotation` object (including `contentSnapshot`, potentially kilobytes of source code) into the command URI query parameter on every hover render.
+**Affected files:** `src/hoverProvider.ts`, `src/commands/editAnnotation.ts`, `src/commands/deleteAnnotation.ts`, `src/commands/showStaleDiff.ts`
+**Fix:** `commandLink` now serialises only `[{ id }]`. Handlers detect the bare `{ id }` shape via `'comment' in nodeOrAnnotation` discriminator and look up the full annotation from the store. Added `HoverArg` type to `src/types.ts` and updated all three handler signatures.
+
+---
+
 ### BUG-003 — No user-facing prompt when annotations are sent/copied for context
 
 **Status:** Fixed

@@ -3,7 +3,7 @@ import { AnnotationStore } from './annotationStore';
 import { DecorationsManager } from './decorations';
 import { AnnotationHoverProvider } from './hoverProvider';
 import { AnnotationsTreeProvider, AnnotationNode, SortMode } from './annotationsTreeProvider';
-import { Annotation } from './types';
+import { Annotation, HoverArg } from './types';
 import { annotateSelection } from './commands/annotateSelection';
 import { exportForLLM } from './commands/exportForLLM';
 import { clearAnnotations } from './commands/clearAnnotations';
@@ -157,7 +157,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand(
       'annotate.showStaleDiff',
-      (nodeOrAnnotation?: AnnotationNode | Annotation) =>
+      (nodeOrAnnotation?: AnnotationNode | Annotation | HoverArg) =>
         showStaleDiff(store, nodeOrAnnotation)
     ),
 
@@ -177,11 +177,6 @@ export function activate(context: vscode.ExtensionContext): void {
       const picked = await vscode.window.showQuickPick(picks, { placeHolder: 'Select annotation sort order' });
       if (!picked) { return; }
       treeProvider.setSortMode(picked.mode);
-      await vscode.workspace.getConfiguration('annotate').update(
-        'sidebarSortMode',
-        picked.mode,
-        vscode.ConfigurationTarget.Workspace
-      );
     }),
 
     // Sync sort mode when settings.json is edited directly.
@@ -189,7 +184,7 @@ export function activate(context: vscode.ExtensionContext): void {
       if (e.affectsConfiguration('annotate.sidebarSortMode')) {
         const raw = vscode.workspace.getConfiguration('annotate').get<string>('sidebarSortMode');
         const mode: SortMode = raw === 'date' || raw === 'tag' ? raw : 'file';
-        treeProvider.setSortMode(mode);
+        treeProvider.setSortMode(mode, false);
       }
     }),
 
@@ -241,12 +236,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand(
       'annotate.editAnnotation',
-      (nodeOrAnnotation?: AnnotationNode | Annotation) => editAnnotation(store, decorations, nodeOrAnnotation)
+      (nodeOrAnnotation?: AnnotationNode | Annotation | HoverArg) => editAnnotation(store, decorations, nodeOrAnnotation)
     ),
 
     vscode.commands.registerCommand(
       'annotate.deleteAnnotation',
-      (nodeOrAnnotation?: AnnotationNode | Annotation) => deleteAnnotation(store, decorations, nodeOrAnnotation)
+      (nodeOrAnnotation?: AnnotationNode | Annotation | HoverArg) => deleteAnnotation(store, decorations, nodeOrAnnotation)
     ),
 
     vscode.commands.registerCommand('annotate.refreshAnnotationsView', () => {
