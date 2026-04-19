@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { AnnotationNode } from '../annotationsTreeProvider';
-import { Annotation } from '../types';
+import { Annotation, HoverArg } from '../types';
 import { isAnnotationStale } from '../staleDetector';
 import { SNAPSHOT_SCHEME } from '../annotationSnapshotProvider';
 
@@ -19,19 +19,19 @@ import { SNAPSHOT_SCHEME } from '../annotationSnapshotProvider';
  */
 export async function showStaleDiff(
   store: AnnotationStore,
-  nodeOrAnnotation?: AnnotationNode | Annotation
+  nodeOrAnnotation?: AnnotationNode | Annotation | HoverArg
 ): Promise<void> {
   let annotation: Annotation | undefined;
 
   if (nodeOrAnnotation instanceof AnnotationNode) {
     annotation = nodeOrAnnotation.annotation;
   } else if (nodeOrAnnotation) {
-    if ('fileUri' in nodeOrAnnotation) {
+    if ('comment' in nodeOrAnnotation) {
       annotation = nodeOrAnnotation as Annotation;
     } else {
       // Hover command link passes only { id } — look up the full annotation.
       const data = await store.load();
-      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as { id: string }).id);
+      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as HoverArg).id);
       if (!annotation) {
         vscode.window.showWarningMessage('Annotate: Annotation not found.');
         return;

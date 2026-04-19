@@ -35,3 +35,6 @@ export interface AnnotationsFile {
   version: 1;
   annotations: Annotation[];
 }
+
+/** Minimal arg shape passed by hover command links — resolved to a full Annotation by the handler. */
+export type HoverArg = { readonly id: string };

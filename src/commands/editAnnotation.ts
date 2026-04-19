@@ -2,14 +2,14 @@ import * as vscode from 'vscode';
 import { AnnotationNode } from '../annotationsTreeProvider';
 import { AnnotationStore } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
-import { Annotation } from '../types';
+import { Annotation, HoverArg } from '../types';
 import { getAnnotationAtCursor } from './utils';
 import { showAnnotationInput } from '../ui/annotationInput';
 
 export async function editAnnotation(
   store: AnnotationStore,
   decorations: DecorationsManager,
-  nodeOrAnnotation: AnnotationNode | Annotation | undefined
+  nodeOrAnnotation: AnnotationNode | Annotation | HoverArg | undefined
 ): Promise<void> {
   let annotation: Annotation | undefined;
 
@@ -22,7 +22,7 @@ export async function editAnnotation(
     } else {
       // Hover command link passes only { id } — look up the full annotation.
       const data = await store.load();
-      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as { id: string }).id);
+      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as HoverArg).id);
       if (!annotation) {
         vscode.window.showWarningMessage('Annotate: Annotation not found.');
         return;

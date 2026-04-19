@@ -9,6 +9,7 @@ import { editAnnotation } from '../../commands/editAnnotation';
 import { deleteAnnotation } from '../../commands/deleteAnnotation';
 import * as annotationInputModule from '../../ui/annotationInput';
 import { AnnotationTag } from '../../types';
+import { showStaleDiff } from '../../commands/showStaleDiff';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -346,6 +347,32 @@ suite('deleteAnnotation command', () => {
     const data = await store.load();
     assert.strictEqual(data.annotations.length, 0);
   });
+
+  test('deleteAnnotation removes annotation when called with bare {id} object', async () => {
+    const editor = await openDocument('const x = 1;\n');
+
+    const now = new Date().toISOString();
+    await store.add({
+      id: 'hover-delete-id',
+      fileUri: vscode.workspace.asRelativePath(editor.document.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'to be deleted',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await withMock(vscode.window, 'showInformationMessage', () => Promise.resolve(undefined) as any, async () => {
+      await deleteAnnotation(store, decorations, { id: 'hover-delete-id' } as any);
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(
+      data.annotations.find(a => a.id === 'hover-delete-id'),
+      undefined,
+      'Annotation must be removed when deleteAnnotation is called with bare {id}'
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -477,5 +504,36 @@ suite('editAnnotation command', () => {
     const ann = data.annotations.find(a => a.id === 'hover-edit-id');
     assert.ok(ann, 'Annotation must still exist');
     assert.strictEqual(ann!.comment, 'updated from hover');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// showStaleDiff — bare id dispatch
+// ---------------------------------------------------------------------------
+
+suite('showStaleDiff command — bare id dispatch', () => {
+  let store: AnnotationStore;
+
+  setup(async () => {
+    store = new AnnotationStore();
+    await store.clear();
+  });
+
+  teardown(async () => {
+    await store.clear();
+  });
+
+  test('showStaleDiff warns when annotation id is not found in store', async () => {
+    const warnings: string[] = [];
+    const warnMock: typeof vscode.window.showWarningMessage = (msg: string) => {
+      warnings.push(msg);
+      return Promise.resolve(undefined) as any;
+    };
+
+    await withMock(vscode.window, 'showWarningMessage', warnMock, async () => {
+      await showStaleDiff(store, { id: 'nonexistent-id' } as any);
+    });
+
+    assert.ok(warnings.length > 0, 'Expected a warning for unknown annotation id');
   });
 });
