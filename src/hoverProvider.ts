@@ -11,7 +11,7 @@ function formatTimestamp(iso: string): string {
 }
 
 function commandLink(label: string, command: string, annotation: Annotation): string {
-  const args = encodeURIComponent(JSON.stringify([annotation]));
+  const args = encodeURIComponent(JSON.stringify([{ id: annotation.id }]));
   return `[${label}](command:${command}?${args})`;
 }
 

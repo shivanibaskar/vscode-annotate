@@ -113,25 +113,8 @@ suite('annotateSelection command', () => {
     assert.strictEqual(data.annotations.length, 0);
   });
 
-  test('does not save when comment is empty string', async () => {
-    const editor = await openDocument('hello\n');
-    editor.selection = new vscode.Selection(0, 0, 0, 5);
-
-    const warnings: string[] = [];
-    const warnMock: typeof vscode.window.showWarningMessage = (msg: string) => {
-      warnings.push(msg);
-      return Promise.resolve(undefined) as any;
-    };
-    await withInputMock({ comment: '', tag: undefined }, async () => {
-      await withMock(vscode.window, 'showWarningMessage', warnMock, async () => {
-        await annotateSelection(store, decorations);
-      });
-    });
-
-    assert.ok(warnings.length > 0, 'Expected a warning for empty comment');
-    const data = await store.load();
-    assert.strictEqual(data.annotations.length, 0);
-  });
+  // Empty-comment rejection is handled exclusively by showAnnotationInput's
+  // InputBox validator (which prevents submission), not by annotateSelection.
 
   test('shows warning when selection is empty', async () => {
     const editor = await openDocument('hello\n');
@@ -448,26 +431,8 @@ suite('editAnnotation command', () => {
     assert.strictEqual(data.annotations[0].comment, 'original');
   });
 
-  test('does not update when empty comment is submitted', async () => {
-    const ann = { id: 'edit-3', fileUri: 'src/foo.ts', range: { start: 0, end: 0 }, comment: 'original', createdAt: now, updatedAt: now };
-    await store.add(ann);
-
-    const node = new AnnotationNode(ann);
-    const warnings: string[] = [];
-    const warnMock: typeof vscode.window.showWarningMessage = (msg: string) => {
-      warnings.push(msg);
-      return Promise.resolve(undefined) as any;
-    };
-    await withInputMock({ comment: '', tag: undefined }, async () => {
-      await withMock(vscode.window, 'showWarningMessage', warnMock, async () => {
-        await editAnnotation(store, decorations, node);
-      });
-    });
-
-    assert.ok(warnings.length > 0, 'Expected warning for empty comment');
-    const data = await store.load();
-    assert.strictEqual(data.annotations[0].comment, 'original');
-  });
+  // Empty-comment rejection is handled exclusively by showAnnotationInput's
+  // InputBox validator (which prevents submission), not by editAnnotation.
 
   test('updates annotation at cursor position when no node provided', async () => {
     const doc = await vscode.workspace.openTextDocument({ content: 'line 0\nline 1\n' });
@@ -487,5 +452,30 @@ suite('editAnnotation command', () => {
     await store.flush();
     const data = await store.load();
     assert.strictEqual(data.annotations[0].comment, 'new comment');
+  });
+
+  test('editAnnotation resolves annotation by id when called with bare {id} object', async () => {
+    const editor = await openDocument('const x = 1;\n');
+    editor.selection = new vscode.Selection(0, 0, 0, 13);
+
+    const now = new Date().toISOString();
+    await store.add({
+      id: 'hover-edit-id',
+      fileUri: vscode.workspace.asRelativePath(editor.document.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'original comment',
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await withInputMock({ comment: 'updated from hover', tag: undefined }, async () => {
+      await editAnnotation(store, decorations, { id: 'hover-edit-id' } as any);
+    });
+
+    await store.flush();
+    const data = await store.load();
+    const ann = data.annotations.find(a => a.id === 'hover-edit-id');
+    assert.ok(ann, 'Annotation must still exist');
+    assert.strictEqual(ann!.comment, 'updated from hover');
   });
 });

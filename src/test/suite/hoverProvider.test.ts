@@ -194,4 +194,24 @@ suite('AnnotationHoverProvider', () => {
     const firstContent = (hover.contents as vscode.MarkdownString[])[0];
     assert.strictEqual(firstContent.isTrusted, true, 'MarkdownString must be trusted for command URIs');
   });
+
+  test('command URIs in hover contain only annotation id, not full annotation data', async () => {
+    const doc = await openDocument('const x = 1;\n');
+    const snapshot = 'A'.repeat(500);
+    await store.add({
+      id: 'uri-check',
+      fileUri: vscode.workspace.asRelativePath(doc.uri, false),
+      range: { start: 0, end: 0 },
+      comment: 'check uri size',
+      contentSnapshot: snapshot,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const hover = await provider.provideHover(doc, new vscode.Position(0, 0));
+    assert.ok(hover, 'Expected hover');
+    const combined = (hover.contents as vscode.MarkdownString[]).map(c => c.value).join('');
+    assert.ok(!combined.includes(snapshot), 'contentSnapshot must not be embedded in command URIs');
+    assert.ok(combined.includes('uri-check'), 'Annotation id must appear in command URI args');
+  });
 });

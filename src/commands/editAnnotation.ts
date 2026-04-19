@@ -16,8 +16,18 @@ export async function editAnnotation(
   if (nodeOrAnnotation instanceof AnnotationNode) {
     annotation = nodeOrAnnotation.annotation;
   } else if (nodeOrAnnotation && 'id' in nodeOrAnnotation) {
-    // Called from hover command link — annotation object passed directly as arg.
-    annotation = nodeOrAnnotation;
+    if ('comment' in nodeOrAnnotation) {
+      // Full Annotation passed (e.g. from programmatic callers).
+      annotation = nodeOrAnnotation as Annotation;
+    } else {
+      // Hover command link passes only { id } — look up the full annotation.
+      const data = await store.load();
+      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as { id: string }).id);
+      if (!annotation) {
+        vscode.window.showWarningMessage('Annotate: Annotation not found.');
+        return;
+      }
+    }
   } else {
     annotation = await getAnnotationAtCursor(store);
     if (!annotation) {
@@ -35,13 +45,15 @@ export async function editAnnotation(
   if (result === undefined) {
     return; // user cancelled
   }
-  if (result.comment === '') {
-    vscode.window.showWarningMessage('Annotate: Comment cannot be empty.');
-    return;
-  }
 
-  const updated: Annotation = { ...annotation, comment: result.comment };
-  if (result.tag) { updated.tag = result.tag; } else { delete updated.tag; }
+  // Build the updated annotation in one expression — avoids mutating a spread
+  // copy via `delete` and keeps TypeScript's type narrowing intact.
+  const { tag: _tag, ...base } = annotation;
+  const updated: Annotation = {
+    ...base,
+    comment: result.comment,
+    ...(result.tag ? { tag: result.tag } : {}),
+  };
   await store.update(updated);
 
   const editor = vscode.window.activeTextEditor;

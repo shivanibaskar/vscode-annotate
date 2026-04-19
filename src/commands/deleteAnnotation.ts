@@ -15,8 +15,17 @@ export async function deleteAnnotation(
   if (nodeOrAnnotation instanceof AnnotationNode) {
     annotation = nodeOrAnnotation.annotation;
   } else if (nodeOrAnnotation && 'id' in nodeOrAnnotation) {
-    // Called from hover command link — annotation object passed directly as arg
-    annotation = nodeOrAnnotation;
+    if ('comment' in nodeOrAnnotation) {
+      annotation = nodeOrAnnotation as Annotation;
+    } else {
+      // Hover command link passes only { id } — look up the full annotation.
+      const data = await store.load();
+      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as { id: string }).id);
+      if (!annotation) {
+        vscode.window.showWarningMessage('Annotate: Annotation not found.');
+        return;
+      }
+    }
   } else {
     annotation = await getAnnotationAtCursor(store);
     if (!annotation) {

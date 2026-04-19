@@ -26,7 +26,17 @@ export async function showStaleDiff(
   if (nodeOrAnnotation instanceof AnnotationNode) {
     annotation = nodeOrAnnotation.annotation;
   } else if (nodeOrAnnotation) {
-    annotation = nodeOrAnnotation as Annotation;
+    if ('fileUri' in nodeOrAnnotation) {
+      annotation = nodeOrAnnotation as Annotation;
+    } else {
+      // Hover command link passes only { id } — look up the full annotation.
+      const data = await store.load();
+      annotation = data.annotations.find(a => a.id === (nodeOrAnnotation as { id: string }).id);
+      if (!annotation) {
+        vscode.window.showWarningMessage('Annotate: Annotation not found.');
+        return;
+      }
+    }
   } else {
     // Resolve from cursor position in the active editor.
     const editor = vscode.window.activeTextEditor;
@@ -74,8 +84,9 @@ export async function showStaleDiff(
     }
   }
 
-  const startLine = annotation.range.start + 1; // 1-based for display
-  const endLine   = annotation.range.end + 1;
+  // Clamp to non-negative 1-based line numbers for safe display in the diff title.
+  const startLine = Math.max(1, annotation.range.start + 1);
+  const endLine   = Math.max(startLine, annotation.range.end + 1);
   const lineLabel = startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
   const title = `Stale Annotation — ${annotation.fileUri} ${lineLabel}`;
 
