@@ -280,7 +280,10 @@ suite('AnnotationStore.switchSet', () => {
     };
 
     // Schedule flush for default without awaiting, then switch immediately.
-    store.add(ann1);                  // do NOT await — flush is queued but not run
+    // Cache is warm from setup's clear(), so add() does not suspend on _ensureLoaded().
+    // This test verifies correct file routing after switchSet — the raw timing race
+    // requires mock injection to reproduce deterministically and is covered by code inspection.
+    store.add(ann1); // do NOT await — flush is queued but not run
     store.switchSet('race-fix-test'); // switches _setName before flush executes
     await store.add(ann2);            // adds to race-fix-test
     await store.flush();              // drain the entire queue

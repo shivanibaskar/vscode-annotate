@@ -157,10 +157,15 @@ export class AnnotationStore {
    * @param data  The in-memory annotations file to serialise.
    */
   private _scheduleFlush(uri: vscode.Uri | undefined, data: AnnotationsFile): void {
-    // Deep-copy the annotations array so mutations after enqueue cannot corrupt the
-    // snapshot (switchSet clears _cache, so the object reference would become stale).
-    const snapshot: AnnotationsFile = { version: data.version, annotations: [...data.annotations] };
+    // Deep-copy each annotation (including its nested range) so mutations after
+    // enqueue cannot corrupt the snapshot — a shallow spread of the array would
+    // leave Annotation objects and their range fields as shared references.
+    const snapshot: AnnotationsFile = {
+      version: data.version,
+      annotations: data.annotations.map(a => ({ ...a, range: { ...a.range } })),
+    };
     this._flushQueue = this._flushQueue.then(async () => {
+      // No workspace folder open — write intentionally skipped (no modal in queued context).
       if (!uri) { return; }
       const encoded = Buffer.from(JSON.stringify(snapshot, null, 2), 'utf8');
       await vscode.workspace.fs.writeFile(uri, encoded);
