@@ -12,21 +12,24 @@ const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
   _default:  'editorInfo.foreground',
 };
 
+const GUTTER_ICONS: Record<AnnotationTag | '_default' | '_stale', string> = {
+  bug:       'gutter-bug.svg',
+  question:  'gutter-question.svg',
+  todo:      'gutter-todo.svg',
+  context:   'gutter-context.svg',
+  important: 'gutter-important.svg',
+  _default:  'gutter-default.svg',
+  _stale:    'gutter-stale.svg',
+};
+
 const ALL_TAGS: (AnnotationTag | '_default')[] = [
   'bug', 'question', 'todo', 'context', 'important', '_default',
 ];
 
-/** Amber border used for annotations whose source lines have changed since creation. */
-const STALE_DECORATION = vscode.window.createTextEditorDecorationType({
-  backgroundColor: new vscode.ThemeColor('editor.wordHighlightBackground'),
-  borderWidth: '0 0 0 3px',
-  borderStyle: 'dashed',
-  borderColor: new vscode.ThemeColor('editorWarning.foreground'),
-  overviewRulerColor: new vscode.ThemeColor('editorWarning.foreground'),
-  overviewRulerLane: vscode.OverviewRulerLane.Left,
-});
-
-function makeDecorationType(colorToken: string): vscode.TextEditorDecorationType {
+function makeDecorationType(
+  colorToken: string,
+  gutterIconPath?: vscode.Uri
+): vscode.TextEditorDecorationType {
   return vscode.window.createTextEditorDecorationType({
     backgroundColor: new vscode.ThemeColor('editor.wordHighlightBackground'),
     borderWidth: '0 0 0 3px',
@@ -34,16 +37,67 @@ function makeDecorationType(colorToken: string): vscode.TextEditorDecorationType
     borderColor: new vscode.ThemeColor(colorToken),
     overviewRulerColor: new vscode.ThemeColor(colorToken),
     overviewRulerLane: vscode.OverviewRulerLane.Left,
+    ...(gutterIconPath ? { gutterIconPath, gutterIconSize: 'contain' } : {}),
   });
 }
 
 export class DecorationsManager {
   private readonly types: Map<AnnotationTag | '_default', vscode.TextEditorDecorationType>;
+  private readonly staleDecoration: vscode.TextEditorDecorationType;
 
-  constructor(private readonly store: AnnotationStore) {
+  /**
+   * @param store        - The active annotation store.
+   * @param extensionUri - Optional URI of the extension root. When provided,
+   *                       per-tag gutter icons are loaded from `media/`.
+   */
+  constructor(
+    private readonly store: AnnotationStore,
+    private readonly extensionUri?: vscode.Uri
+  ) {
     this.types = new Map(
-      ALL_TAGS.map(tag => [tag, makeDecorationType(TAG_COLORS[tag])])
+      ALL_TAGS.map(tag => {
+        const iconPath = extensionUri
+          ? vscode.Uri.joinPath(extensionUri, 'media', GUTTER_ICONS[tag])
+          : undefined;
+        return [tag, makeDecorationType(TAG_COLORS[tag], iconPath)];
+      })
     );
+
+    const staleIconPath = extensionUri
+      ? vscode.Uri.joinPath(extensionUri, 'media', GUTTER_ICONS['_stale'])
+      : undefined;
+    this.staleDecoration = vscode.window.createTextEditorDecorationType({
+      backgroundColor: new vscode.ThemeColor('editor.wordHighlightBackground'),
+      borderWidth: '0 0 0 3px',
+      borderStyle: 'dashed',
+      borderColor: new vscode.ThemeColor('editorWarning.foreground'),
+      overviewRulerColor: new vscode.ThemeColor('editorWarning.foreground'),
+      overviewRulerLane: vscode.OverviewRulerLane.Left,
+      ...(staleIconPath ? { gutterIconPath: staleIconPath, gutterIconSize: 'contain' } : {}),
+    });
+
+    // Validate icons at construction time so a packaging mistake (missing SVG)
+    // surfaces a warning immediately rather than silently producing blank gutters.
+    if (extensionUri) {
+      void this._warnIfIconsMissing(extensionUri);
+    }
+  }
+
+  private async _warnIfIconsMissing(extensionUri: vscode.Uri): Promise<void> {
+    const allIcons = Object.values(GUTTER_ICONS);
+    const missing: string[] = [];
+    for (const icon of allIcons) {
+      try {
+        await vscode.workspace.fs.stat(vscode.Uri.joinPath(extensionUri, 'media', icon));
+      } catch {
+        missing.push(icon);
+      }
+    }
+    if (missing.length > 0) {
+      vscode.window.showWarningMessage(
+        `Annotate: Missing gutter icon(s): ${missing.join(', ')}. Gutter decorations may not display correctly.`
+      );
+    }
   }
 
   async refresh(editor: vscode.TextEditor): Promise<void> {
@@ -69,15 +123,23 @@ export class DecorationsManager {
     for (const tag of ALL_TAGS) {
       editor.setDecorations(this.types.get(tag)!, buckets.get(tag)!);
     }
-    editor.setDecorations(STALE_DECORATION, staleRanges);
+    editor.setDecorations(this.staleDecoration, staleRanges);
   }
 
+  /** Remove all decorations from all visible editors. */
   clearAll(): void {
     for (const editor of vscode.window.visibleTextEditors) {
       for (const type of this.types.values()) {
         editor.setDecorations(type, []);
       }
-      editor.setDecorations(STALE_DECORATION, []);
+      editor.setDecorations(this.staleDecoration, []);
+    }
+  }
+
+  /** Re-apply decorations for all currently visible editors. Used after undo. */
+  async refreshAll(): Promise<void> {
+    for (const editor of vscode.window.visibleTextEditors) {
+      await this.refresh(editor);
     }
   }
 
@@ -85,7 +147,7 @@ export class DecorationsManager {
     for (const type of this.types.values()) {
       type.dispose();
     }
-    STALE_DECORATION.dispose();
+    this.staleDecoration.dispose();
   }
 }
 

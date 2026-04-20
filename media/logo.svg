@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Background rounded square -->
+  <rect width="128" height="128" rx="22" fill="#CC5529"/>
+
+  <!-- </> code symbol, centered -->
+  <!-- Left < -->
+  <polyline points="42,34 20,64 42,94"
+    fill="none" stroke="white" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Slash / -->
+  <line x1="62" y1="94" x2="76" y2="34"
+    stroke="white" stroke-width="9" stroke-linecap="round"/>
+  <!-- Right > -->
+  <polyline points="86,34 108,64 86,94"
+    fill="none" stroke="white" stroke-width="9"
+    stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Tag badge, bottom-right, overlapping corner -->
+  <path d="M 84,97 L 112,97 Q 121,97 121,106 Q 121,115 112,115 L 84,115 L 76,106 Z"
+    fill="#FFD54F"/>
+  <!-- Tag hole -->
+  <circle cx="88" cy="106" r="3.5" fill="#CC5529"/>
+</svg>

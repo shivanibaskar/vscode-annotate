@@ -43,7 +43,23 @@ export async function exportToTerminal(store: AnnotationStore): Promise<void> {
 // Terminal resolution
 // ---------------------------------------------------------------------------
 
-let _lastTerminalId: number | undefined;
+// Use terminal.name as the stable identity key — processId is not part of
+// the public VS Code API and may be undefined on remote/WSL targets.
+let _lastTerminalName: string | undefined;
+
+/**
+ * Clears the remembered terminal when it closes, so the next invocation
+ * shows the picker rather than silently targeting a dead terminal.
+ */
+export function registerTerminalCloseListener(context: { subscriptions: { dispose(): void }[] }): void {
+  context.subscriptions.push(
+    vscode.window.onDidCloseTerminal(t => {
+      if (t.name === _lastTerminalName) {
+        _lastTerminalName = undefined;
+      }
+    })
+  );
+}
 
 async function resolveTerminal(): Promise<vscode.Terminal | undefined> {
   const terminals = vscode.window.terminals;
@@ -57,13 +73,13 @@ async function resolveTerminal(): Promise<vscode.Terminal | undefined> {
 
   // Single terminal — use it directly.
   if (terminals.length === 1) {
-    _lastTerminalId = (terminals[0] as any).processId;
+    _lastTerminalName = terminals[0].name;
     return terminals[0];
   }
 
   // Prefer the previously used terminal if it is still alive.
-  if (_lastTerminalId !== undefined) {
-    const last = terminals.find(t => (t as any).processId === _lastTerminalId);
+  if (_lastTerminalName !== undefined) {
+    const last = terminals.find(t => t.name === _lastTerminalName);
     if (last) { return last; }
   }
 
@@ -83,6 +99,6 @@ async function resolveTerminal(): Promise<vscode.Terminal | undefined> {
 
   if (!picked) { return undefined; }
 
-  _lastTerminalId = (picked.terminal as any).processId;
+  _lastTerminalName = picked.terminal.name;
   return picked.terminal;
 }

@@ -21,7 +21,7 @@ Stop retyping your investigation notes into chat. Highlight what matters, write 
 1. Select some lines in any file.
 2. Press **⌘⇧H** (macOS) or **Ctrl+Shift+H** (Win/Linux) — or right-click → *Annotate Selection*.
 3. Type your comment, press Enter. Pick a tag (or press Esc to skip tagging).
-4. Keep annotating. When you're ready, press **⌘⇧X** / **Ctrl+Shift+X** to open the export preview, or **⌘⇧C** / **Ctrl+Shift+C** to copy straight to the clipboard.
+4. Keep annotating. When you're ready, press **⌘⇧X** / **Ctrl+Shift+X** to open the export preview, or **⌘⇧C** / **Ctrl+Shift+C** to copy the current file's annotations straight to the clipboard.
 5. Paste into your LLM, add your question, hit send.
 
 The **LLM Annotator** activity-bar icon opens a sidebar that lists every annotation in the workspace, grouped by file.
@@ -80,8 +80,8 @@ All commands live under the **Annotate** category in the Command Palette.
 | Export Annotations as Markdown | ⌘⇧M / Ctrl+Shift+M |
 | Search Annotations | ⌘⇧F / Ctrl+Shift+F |
 | Send Annotations to Terminal (Claude Code) | ⌘⇧T / Ctrl+Shift+T |
-| Copy All Annotations to Clipboard | ⌘⇧C / Ctrl+Shift+C |
-| Copy File Annotations to Clipboard | — |
+| Copy File Annotations to Clipboard | ⌘⇧C / Ctrl+Shift+C |
+| Copy All Annotations to Clipboard | — |
 | Export Current File's Annotations | — |
 | Export Filtered Annotations (by @mention) | — |
 | Switch Annotation Set | — |

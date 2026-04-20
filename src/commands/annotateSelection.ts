@@ -25,10 +25,7 @@ export async function annotateSelection(
   if (result === undefined) {
     return; // user cancelled (closed the picker)
   }
-  if (result.comment === '') {
-    vscode.window.showWarningMessage('Annotate: Comment cannot be empty.');
-    return;
-  }
+  // Empty comment is already prevented by showAnnotationInput's InputBox validator.
 
   const fileUri = vscode.workspace.asRelativePath(editor.document.uri, false);
   const now = new Date().toISOString();

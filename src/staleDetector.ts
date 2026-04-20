@@ -16,8 +16,11 @@ export function isAnnotationStale(annotation: Annotation, documentText: string):
   }
 
   const lines = documentText.split('\n');
-  // Guard: if the file now has fewer lines than the annotation range, treat as stale.
-  if (annotation.range.end >= lines.length) {
+  // Guard: if the annotation's start line is beyond the file, the entire range is
+  // gone and the annotation is definitely stale. Checking only the end would mark
+  // partially-valid annotations stale (e.g. a 3-line annotation where only the
+  // last line was trimmed away).
+  if (annotation.range.start >= lines.length) {
     return true;
   }
 

@@ -57,6 +57,7 @@ export class AnnotationCodeLensProvider implements vscode.CodeLensProvider {
     }
 
     for (const [safeLine, group] of byLine) {
+      if (group.length === 0) { continue; } // invariant: should never happen, but guard defensively
       const range = new vscode.Range(safeLine, 0, safeLine, 0);
       if (group.length === 1) {
         lenses.push(
@@ -83,7 +84,7 @@ export class AnnotationCodeLensProvider implements vscode.CodeLensProvider {
 
 function summaryLens(range: vscode.Range, annotations: Annotation[]): vscode.CodeLens {
   return new vscode.CodeLens(range, {
-    title: `$(comment) ${annotations.length} annotations on this line`,
+    title: `$(comment)  ${annotations.length} annotations on this line`,
     command: 'annotate.revealAnnotation',
     arguments: [annotations[0]],
     tooltip: annotations.map(a => a.comment).join('\n---\n'),
@@ -96,7 +97,7 @@ function previewLens(range: vscode.Range, annotation: Annotation): vscode.CodeLe
     ? `${annotation.comment.slice(0, MAX_PREVIEW_LEN)}…`
     : annotation.comment;
   return new vscode.CodeLens(range, {
-    title: `${icon} ${preview}`,
+    title: `${icon}  ${preview}`,
     command: 'annotate.revealAnnotation',
     arguments: [annotation],
     tooltip: annotation.comment,

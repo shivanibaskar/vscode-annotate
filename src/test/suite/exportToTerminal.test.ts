@@ -74,4 +74,42 @@ suite('exportToTerminal command', () => {
       if (origTerminals) { Object.defineProperty(vscode.window, 'terminals', origTerminals); }
     }
   });
+
+  test('re-uses remembered terminal by name on second call (no picker)', async () => {
+    await store.add({ id: '3', fileUri: 'src/c.ts', range: { start: 0, end: 0 }, comment: 'retarget', createdAt: now, updatedAt: now });
+
+    const sentTo: string[] = [];
+    const makeTerminal = (name: string): Partial<vscode.Terminal> => ({
+      name,
+      sendText: () => { sentTo.push(name); },
+      show: () => {},
+    });
+
+    // Use names that don't collide with earlier tests ('bash' may be remembered).
+    const termA = makeTerminal('claude-code');
+    const termB = makeTerminal('zsh');
+
+    const origTerminals = Object.getOwnPropertyDescriptor(vscode.window, 'terminals');
+    const origQP = vscode.window.showQuickPick;
+
+    // First call with two terminals — mock picker to select termA.
+    Object.defineProperty(vscode.window, 'terminals', { get: () => [termA, termB], configurable: true });
+    (vscode.window as any).showQuickPick = async (items: any[]) =>
+      items.find((i: any) => i.label === 'claude-code');
+
+    try {
+      await exportToTerminal(store);
+      assert.deepStrictEqual(sentTo, ['claude-code'], 'First call should use picked terminal');
+
+      // Second call — picker must NOT be shown; remembered name should be used.
+      (vscode.window as any).showQuickPick = async () => {
+        throw new Error('Picker should not open for a remembered terminal');
+      };
+      await exportToTerminal(store);
+      assert.deepStrictEqual(sentTo, ['claude-code', 'claude-code'], 'Second call should re-use remembered terminal by name');
+    } finally {
+      (vscode.window as any).showQuickPick = origQP;
+      if (origTerminals) { Object.defineProperty(vscode.window, 'terminals', origTerminals); }
+    }
+  });
 });

@@ -6,6 +6,18 @@ import { parseMentions } from './mentions';
 
 const MAX_LABEL_LEN = 60;
 
+/** Sort modes for the annotations sidebar panel. */
+export type SortMode = 'file' | 'date' | 'tag';
+
+/** Tag priority for sort-by-tag mode. Lower number = higher priority. */
+const TAG_PRIORITY: Record<string, number> = {
+  bug:       0,
+  important: 1,
+  question:  2,
+  todo:      3,
+  context:   4,
+};
+
 function truncate(str: string): string {
   return str.length > MAX_LABEL_LEN ? str.slice(0, MAX_LABEL_LEN) + '…' : str;
 }
@@ -69,8 +81,14 @@ export class AnnotationsTreeProvider
     new vscode.EventEmitter<FileNode | AnnotationNode | undefined | null | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private _sortMode: SortMode = 'file';
+
   constructor(private readonly store: AnnotationStore) {
     store.onDidChange(() => this._onDidChangeTreeData.fire());
+
+    // Initialise sort mode from workspace config.
+    const raw = vscode.workspace.getConfiguration('annotate').get<string>('sidebarSortMode');
+    this._sortMode = toSortMode(raw);
   }
 
   getTreeItem(element: FileNode | AnnotationNode): vscode.TreeItem {
@@ -85,21 +103,79 @@ export class AnnotationsTreeProvider
     const data = await this.store.load();
 
     if (!element) {
-      // Root: build one FileNode per distinct file, sorted alphabetically.
-      const byFile = new Map<string, number>();
+      // Root: group annotations by file, then sort according to current mode.
+      const byFile = new Map<string, Annotation[]>();
       for (const ann of data.annotations) {
-        byFile.set(ann.fileUri, (byFile.get(ann.fileUri) ?? 0) + 1);
+        const list = byFile.get(ann.fileUri) ?? [];
+        list.push(ann);
+        byFile.set(ann.fileUri, list);
       }
-      return [...byFile.entries()]
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([fileUri, count]) => new FileNode(fileUri, count));
+
+      let entries = [...byFile.entries()];
+
+      if (this._sortMode === 'date') {
+        // Sort files by most-recent annotation updatedAt, newest first.
+        entries.sort(([, annsA], [, annsB]) => {
+          const maxA = Math.max(...annsA.map(a => new Date(a.updatedAt).getTime()));
+          const maxB = Math.max(...annsB.map(a => new Date(a.updatedAt).getTime()));
+          return maxB - maxA;
+        });
+      } else {
+        // 'file' or 'tag': sort files alphabetically.
+        entries.sort(([a], [b]) => a.localeCompare(b));
+      }
+
+      return entries.map(([fileUri, anns]) => new FileNode(fileUri, anns.length));
     }
 
-    // FileNode: return AnnotationNodes for this file, sorted by start line.
-    return data.annotations
-      .filter(a => a.fileUri === element.fileUri)
-      .sort((a, b) => a.range.start - b.range.start)
-      .map(a => new AnnotationNode(a));
+    // FileNode: return AnnotationNodes for this file, sorted per current mode.
+    const annotations = data.annotations.filter(a => a.fileUri === element.fileUri);
+
+    if (this._sortMode === 'date') {
+      // Newest annotation first.
+      annotations.sort((a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    } else if (this._sortMode === 'tag') {
+      // Sort by tag priority (undefined = last), then by start line.
+      annotations.sort((a, b) => {
+        const pa = a.tag !== undefined ? (TAG_PRIORITY[a.tag] ?? 5) : 6;
+        const pb = b.tag !== undefined ? (TAG_PRIORITY[b.tag] ?? 5) : 6;
+        return pa !== pb ? pa - pb : a.range.start - b.range.start;
+      });
+    } else {
+      annotations.sort((a, b) => a.range.start - b.range.start);
+    }
+
+    return annotations.map(a => new AnnotationNode(a));
+  }
+
+  /**
+   * Change the sort mode and immediately refresh the tree.
+   *
+   * When `persist` is `true` (the default), the choice is written to the
+   * `annotate.sidebarSortMode` workspace setting. Pass `persist: false` when
+   * calling from an `onDidChangeConfiguration` handler to avoid a write-back
+   * loop (the config has already been updated externally in that case).
+   *
+   * @param mode    - The new sort mode.
+   * @param persist - Whether to persist the value to workspace config (default `true`).
+   */
+  setSortMode(mode: SortMode, persist = true): void {
+    this._sortMode = mode;
+    this._onDidChangeTreeData.fire();
+    if (persist) {
+      void vscode.workspace.getConfiguration('annotate').update(
+        'sidebarSortMode',
+        mode,
+        vscode.ConfigurationTarget.Workspace
+      );
+    }
+  }
+
+  /** Returns the currently active sort mode. */
+  get sortMode(): SortMode {
+    return this._sortMode;
   }
 
   forceRefresh(): void {
@@ -109,4 +185,10 @@ export class AnnotationsTreeProvider
   dispose(): void {
     this._onDidChangeTreeData.dispose();
   }
+}
+
+/** Coerce an unknown config value to a valid SortMode, defaulting to 'file'. */
+function toSortMode(value: string | undefined): SortMode {
+  if (value === 'date' || value === 'tag') { return value; }
+  return 'file';
 }

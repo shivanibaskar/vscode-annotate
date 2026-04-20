@@ -58,10 +58,12 @@ export async function exportFiltered(store: AnnotationStore): Promise<void> {
     return;
   }
 
-  // Build a temporary store-like object with only the filtered annotations
-  // by delegating to a thin wrapper that overrides load().
-  const filteredStore = Object.create(store) as AnnotationStore;
-  filteredStore.load = async () => ({ version: 1 as const, annotations: filtered });
+  // Build a minimal store-like object that satisfies only the load() interface
+  // used by exportForLLM. Object.create would create a prototype chain proxy
+  // with inaccessible private members; a plain wrapper is safer and clearer.
+  const filteredStore = {
+    load: async () => ({ version: 1 as const, annotations: filtered }),
+  } as unknown as AnnotationStore;
 
   await exportForLLM(filteredStore);
 }

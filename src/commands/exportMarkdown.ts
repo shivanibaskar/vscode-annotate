@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
 
@@ -30,6 +31,13 @@ function langFromPath(filePath: string): string {
 async function readLines(fileUri: string): Promise<string[] | null> {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) { return null; }
+  const workspaceRoot = folders[0].uri.fsPath;
+  // Validate that the resolved path stays within the workspace — a crafted
+  // annotation with "../../.ssh/id_rsa" as fileUri could otherwise escape.
+  const resolved = path.resolve(workspaceRoot, fileUri);
+  if (resolved !== workspaceRoot && !resolved.startsWith(workspaceRoot + path.sep)) {
+    return null;
+  }
   try {
     const uri = vscode.Uri.joinPath(folders[0].uri, fileUri);
     const raw = await vscode.workspace.fs.readFile(uri);

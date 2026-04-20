@@ -75,4 +75,18 @@ suite('isAnnotationStale', () => {
     });
     assert.strictEqual(isAnnotationStale(ann, content + '\nconst c = 3;\n'), false);
   });
+
+  test('returns false when start is in range but end exceeds file length (partial overlap)', () => {
+    // A 3-line annotation at lines 1–3 in a file that now has only 3 lines (0–2).
+    // start (1) is valid; end (3) is out of bounds. The annotation is partially
+    // valid — the start line still exists — so it should NOT be considered stale
+    // purely on the bounds check. The content comparison determines staleness.
+    const ann = makeAnnotation({
+      range: { start: 1, end: 3 },
+      contentSnapshot: 'line two\nline three',
+    });
+    const doc = 'line one\nline two\nline three\n'; // 3 lines (indices 0-2), end=3 is out of bounds
+    // Content at lines 1–2 is "line two\nline three", which matches the snapshot.
+    assert.strictEqual(isAnnotationStale(ann, doc), false);
+  });
 });

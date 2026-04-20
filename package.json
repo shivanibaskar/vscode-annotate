@@ -3,7 +3,7 @@
   "displayName": "LLM Annotator",
   "description": "Annotate code and markdown selections with comments and tags, then export them as structured LLM context.",
   "version": "0.1.0",
-  "publisher": "vscode-annotate",
+  "publisher": "ShivaniBaskar",
   "icon": "media/logo.png",
   "repository": {
     "type": "git",
@@ -254,7 +254,7 @@
         "when": "editorTextFocus"
       },
       {
-        "command": "annotate.copyToClipboard",
+        "command": "annotate.copyFileAnnotations",
         "key": "ctrl+shift+c",
         "mac": "cmd+shift+c",
         "when": "editorTextFocus"

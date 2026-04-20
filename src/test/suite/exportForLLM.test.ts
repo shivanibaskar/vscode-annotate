@@ -155,8 +155,8 @@ suite('exportForLLM', () => {
 
     try {
       await exportForLLM(store);
-      assert.ok(lastShownContent.includes('<annotated_context>'), 'Expected Claude XML header');
-      assert.ok(lastShownContent.includes('</annotated_context>'), 'Expected Claude XML footer');
+      assert.ok(lastShownContent.includes('<code_annotations>'), 'Expected Claude XML header');
+      assert.ok(lastShownContent.includes('</code_annotations>'), 'Expected Claude XML footer');
     } finally {
       (vscode.workspace as any).getConfiguration = origGet;
     }
