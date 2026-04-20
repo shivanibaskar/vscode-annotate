@@ -1,30 +1,7 @@
 # Bug Log
 
-## Open
-
-### BUG-011 — Hover popup does not show the annotation tag
-
-**Status:** Open
-**Reported:** 2026-03-28
-
-**Description:**
-The hover tooltip renders the comment, timestamp, and action buttons but never outputs `ann.tag`. If a tag was set (e.g. `bug`, `context`, `question`) it is invisible in the hover — the user has to open the sidebar to see it.
-
-**Suspected area:** `src/hoverProvider.ts` — tag needs to be rendered in the header line alongside the timestamp.
-
----
-
-### BUG-012 — Hover timestamp is verbose text, wastes space
-
-**Status:** Open
-**Reported:** 2026-03-28
-
-**Description:**
-The timestamp renders as a full locale string (e.g. *"created Mar 28, 2026, 11:39 AM"*) which takes up significant horizontal space in the narrow hover popup. It should be a compact relative or short date (e.g. "Mar 28" or "2 hours ago") so the header line stays tight.
-
-**Suspected area:** `src/hoverProvider.ts` — `formatTimestamp()` and the header line in `provideHover`.
-
----
+> **Open bugs are tracked on [GitHub Issues](https://github.com/shivanibaskar/vscode-annotate/issues).**
+> This file is a historical archive of fixed bugs.
 
 ## Fixed (Security Hardening — 2026-04-08)
 
