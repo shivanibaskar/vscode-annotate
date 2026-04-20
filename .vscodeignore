@@ -26,3 +26,6 @@ tsconfig*.json
 CLAUDE.md
 improvements_for_prod.md
 BUGS.md
+ROADMAP.md
+ARCHITECTURE.md
+*.vsix
