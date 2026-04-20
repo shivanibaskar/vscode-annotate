@@ -2,7 +2,7 @@
   "name": "vscode-annotate",
   "displayName": "LLM Annotator",
   "description": "Annotate code and markdown selections with comments and tags, then export them as structured LLM context.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "ShivaniBaskar",
   "icon": "media/logo.png",
   "repository": {
@@ -10,7 +10,15 @@
     "url": "https://github.com/shivanibaskar/vscode-annotate"
   },
   "license": "MIT",
-  "keywords": ["llm", "annotation", "ai", "context", "code review", "chatgpt", "claude"],
+  "keywords": [
+    "llm",
+    "annotation",
+    "ai",
+    "context",
+    "code review",
+    "chatgpt",
+    "claude"
+  ],
   "galleryBanner": {
     "color": "#CC5529",
     "theme": "dark"
@@ -18,8 +26,13 @@
   "engines": {
     "vscode": "^1.88.0"
   },
-  "categories": ["Other", "Education"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other",
+    "Education"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -279,7 +292,12 @@
         },
         "annotate.promptTemplate": {
           "type": "string",
-          "enum": ["default", "claude", "gpt", "custom"],
+          "enum": [
+            "default",
+            "claude",
+            "gpt",
+            "custom"
+          ],
           "enumDescriptions": [
             "Plain text header/footer (=== ANNOTATED CODE CONTEXT ===)",
             "Claude XML tags (<annotated_context>…</annotated_context>)",
@@ -307,7 +325,11 @@
         },
         "annotate.sidebarSortMode": {
           "type": "string",
-          "enum": ["file", "date", "tag"],
+          "enum": [
+            "file",
+            "date",
+            "tag"
+          ],
           "enumDescriptions": [
             "Sort files alphabetically; annotations by line number (default)",
             "Sort files by most-recently-updated annotation; annotations newest first",
