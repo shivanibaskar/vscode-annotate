@@ -2,6 +2,10 @@ node_modules/
 out/
 .vscode-test/
 *.vsix
+
+# Personal project notes — not shared via the repo
+ROADMAP.md
+CLAUDE.md
 # Annotation files — commit these to share annotations with your team,
 # or keep them gitignored for personal-only annotations.
 # The default set:
