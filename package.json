@@ -258,6 +258,12 @@
         "key": "ctrl+shift+c",
         "mac": "cmd+shift+c",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.clearAnnotations",
+        "key": "ctrl+shift+backspace",
+        "mac": "cmd+shift+backspace",
+        "when": "editorTextFocus"
       }
     ],
     "markdown.previewScripts": [

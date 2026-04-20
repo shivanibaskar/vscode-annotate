@@ -88,7 +88,7 @@ All commands live under the **Annotate** category in the Command Palette.
 | Use Current Git Branch as Annotation Set | — |
 | Show Stale Annotation Diff | — |
 | Sort Annotations | — |
-| Clear Annotations… | — |
+| Clear Annotations… | ⌘⇧⌫ / Ctrl+Shift+Backspace |
 
 Clearing has a 10-second **Undo** window. The clear dialog lets you scope to the current file or the entire workspace.
 
