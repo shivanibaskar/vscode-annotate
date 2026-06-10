@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { ExportPreviewPanel } from '../panels/exportPreviewPanel';
 import { Annotation } from '../types';
+import { toFileUri } from '../workspaceUtils';
 
 const LANG_MAP: Record<string, string> = {
   ts: 'typescript', tsx: 'typescript',
@@ -57,7 +58,7 @@ export async function exportCurrentFile(store: AnnotationStore): Promise<void> {
     return;
   }
 
-  const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+  const relPath = toFileUri(editor.document.uri);
   const annotations = (await store.getForFile(relPath))
     .sort((a, b) => a.range.start - b.range.start);
 

@@ -6,6 +6,21 @@ const DEFAULT_SET = 'default';
 /** Maximum allowed comment length — enforced both here and in the input UI. */
 export const MAX_COMMENT_LENGTH = 5000;
 
+/**
+ * Allowed shape of annotation set names. Broad enough to cover sanitized git
+ * branch names (dots, underscores), strict enough to stay filesystem-safe.
+ * Must stay in sync with the duplicate validator in media/annotationPreview.js,
+ * which cannot import from this module.
+ */
+export const SET_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+
+/**
+ * Pointer file the markdown-preview script reads to learn the active set.
+ * The name deliberately avoids the `annotations-` prefix so listSets never
+ * mistakes it for an annotation set.
+ */
+const ACTIVE_SET_POINTER_PATH = '.vscode/annotate-active-set.json';
+
 const VALID_TAGS = new Set<AnnotationTag>(['bug', 'context', 'question', 'todo', 'important']);
 
 function annotationsPath(setName: string): string {
@@ -37,7 +52,48 @@ export class AnnotationStore {
     this._setName = name;
     this._cache = null;
     this._loadPromise = null;
+    // Enqueue before firing so listeners that `await flush()` (e.g. the
+    // markdown-preview refresh) observe the updated pointer on disk.
+    this._enqueueActiveSetPointerWrite(true);
     this._onDidChange.fire();
+  }
+
+  /**
+   * Synchronises the on-disk active-set pointer with the current set name.
+   * The markdown-preview script runs sandboxed in a WebView and cannot access
+   * extension state, so it reads this pointer to pick the right annotations file.
+   *
+   * Called at activation with the default `createIfMissing: false` so a stale
+   * pointer from a previous session is corrected without creating the file for
+   * users who never switch sets.
+   *
+   * @param createIfMissing When false, the pointer is only rewritten if it already exists.
+   */
+  syncActiveSetPointer(createIfMissing = false): void {
+    this._enqueueActiveSetPointerWrite(createIfMissing);
+  }
+
+  private _enqueueActiveSetPointerWrite(createIfMissing: boolean): void {
+    const folders = vscode.workspace.workspaceFolders;
+    if (!folders || folders.length === 0) { return; }
+    const uri = vscode.Uri.joinPath(folders[0].uri, ACTIVE_SET_POINTER_PATH);
+    const setName = this._setName;
+    this._flushQueue = this._flushQueue.then(async () => {
+      try {
+        if (!createIfMissing) {
+          try {
+            await vscode.workspace.fs.stat(uri);
+          } catch {
+            return; // Pointer absent — nothing stale to correct.
+          }
+        }
+        const encoded = Buffer.from(JSON.stringify({ set: setName }, null, 2), 'utf8');
+        await vscode.workspace.fs.writeFile(uri, encoded);
+      } catch (err) {
+        // Never let a pointer failure poison the flush queue.
+        console.error('[annotate] Failed to write active-set pointer:', err);
+      }
+    });
   }
 
   /** Returns the names of all annotation sets that exist on disk. */
@@ -54,7 +110,7 @@ export class AnnotationStore {
         } else {
           const m = name.match(/^annotations-(.+)\.json$/);
           // Re-validate captured name against the same allowlist used at creation time.
-          if (m && /^[a-zA-Z0-9-]+$/.test(m[1])) { sets.add(m[1]); }
+          if (m && SET_NAME_PATTERN.test(m[1])) { sets.add(m[1]); }
         }
       }
       return [...sets].sort();

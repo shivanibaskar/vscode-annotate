@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from './annotationStore';
+import { resolveFileUri } from './workspaceUtils';
 
 /**
  * URI scheme used for virtual snapshot documents.
@@ -35,12 +36,11 @@ export class AnnotationSnapshotProvider implements vscode.TextDocumentContentPro
     }
 
     // side === 'current': read the relevant lines from the live workspace file.
-    const folders = vscode.workspace.workspaceFolders;
-    if (!folders?.length) {
-      return '(No workspace folder open)';
+    const fileUri = resolveFileUri(annotation.fileUri);
+    if (!fileUri) {
+      return '(Could not resolve file in workspace)';
     }
     try {
-      const fileUri = vscode.Uri.joinPath(folders[0].uri, annotation.fileUri);
       const raw = await vscode.workspace.fs.readFile(fileUri);
       const lines = Buffer.from(raw).toString('utf8').split('\n');
       if (annotation.range.end >= lines.length) {

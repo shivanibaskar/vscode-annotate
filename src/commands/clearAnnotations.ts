@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
 import { AnnotationsFile } from '../types';
+import { toFileUri } from '../workspaceUtils';
 
 /**
  * Clears annotations for either the active file or the whole workspace,
@@ -22,7 +23,7 @@ export async function clearAnnotations(
   const items: ClearItem[] = [];
 
   if (activeEditor) {
-    const relPath = vscode.workspace.asRelativePath(activeEditor.document.uri, false);
+    const relPath = toFileUri(activeEditor.document.uri);
     items.push({
       label:       '$(file) Clear This File',
       description: relPath,
@@ -57,7 +58,7 @@ async function clearFile(
   decorations: DecorationsManager,
   editor: vscode.TextEditor
 ): Promise<void> {
-  const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+  const relPath = toFileUri(editor.document.uri);
   const data = await store.load();
   const fileAnns = data.annotations.filter(a => a.fileUri === relPath);
 

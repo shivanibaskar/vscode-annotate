@@ -19,6 +19,16 @@ import { buildExportText } from './buildExportText';
  * @param store - The active annotation store.
  */
 export async function exportToTerminal(store: AnnotationStore): Promise<void> {
+  // In Restricted Mode a committed annotations.json is untrusted input; piping
+  // its comments into a live shell would allow command injection via newlines.
+  if (!vscode.workspace.isTrusted) {
+    vscode.window.showWarningMessage(
+      'Annotate: Sending annotations to the terminal is disabled in Restricted Mode. ' +
+      'Trust this workspace to enable it.'
+    );
+    return;
+  }
+
   const output = await buildExportText(store);
 
   if (output === null) {

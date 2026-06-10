@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Annotation } from '../types';
 import { AnnotationStore } from '../annotationStore';
+import { toFileUri } from '../workspaceUtils';
 
 /**
  * Returns the first annotation whose range covers the active editor's cursor line,
@@ -17,7 +18,7 @@ export async function getAnnotationAtCursor(
   const editor = vscode.window.activeTextEditor;
   if (!editor) { return undefined; }
 
-  const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+  const relPath = toFileUri(editor.document.uri);
   const cursorLine = editor.selection.active.line;
   const annotations = await store.getForFile(relPath);
 

@@ -5,6 +5,7 @@ import { DecorationsManager } from '../decorations';
 import { Annotation, HoverArg } from '../types';
 import { getAnnotationAtCursor } from './utils';
 import { showAnnotationInput } from '../ui/annotationInput';
+import { toFileUri } from '../workspaceUtils';
 
 export async function editAnnotation(
   store: AnnotationStore,
@@ -58,7 +59,7 @@ export async function editAnnotation(
 
   const editor = vscode.window.activeTextEditor;
   if (editor) {
-    const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+    const relPath = toFileUri(editor.document.uri);
     if (relPath === annotation.fileUri) {
       await decorations.refresh(editor);
     }

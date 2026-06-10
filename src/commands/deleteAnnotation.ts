@@ -4,6 +4,7 @@ import { AnnotationStore } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
 import { Annotation, HoverArg } from '../types';
 import { getAnnotationAtCursor } from './utils';
+import { toFileUri } from '../workspaceUtils';
 
 export async function deleteAnnotation(
   store: AnnotationStore,
@@ -38,7 +39,7 @@ export async function deleteAnnotation(
 
   const editor = vscode.window.activeTextEditor;
   if (editor) {
-    const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+    const relPath = toFileUri(editor.document.uri);
     if (relPath === annotation.fileUri) {
       await decorations.refresh(editor);
     }

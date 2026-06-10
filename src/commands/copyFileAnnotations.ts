@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
 import { langFromPath, isProseFile } from '../langUtils';
+import { toFileUri } from '../workspaceUtils';
 
 /**
  * Formats a single annotation as a clean, clipboard-ready block.
@@ -62,7 +63,7 @@ export async function copyFileAnnotations(store: AnnotationStore): Promise<void>
     return;
   }
 
-  const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+  const relPath = toFileUri(editor.document.uri);
   const annotations = (await store.getForFile(relPath))
     .sort((a, b) => a.range.start - b.range.start);
 

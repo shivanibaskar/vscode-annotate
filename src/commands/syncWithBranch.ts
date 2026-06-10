@@ -28,9 +28,10 @@ export async function syncWithBranch(
     return;
   }
 
-  // Sanitise branch name for use as a file-system identifier:
-  // replace path separators and other problematic chars with '-'.
-  const setName = branch.replace(/[/\\:*?"<>|]/g, '-');
+  // Sanitise branch name into a valid set name (inverse of SET_NAME_PATTERN):
+  // every disallowed character becomes '-' so e.g. "release/1.2.0" → "release-1.2.0"
+  // and "feat_x" survives unchanged.
+  const setName = branch.replace(/[^a-zA-Z0-9._-]/g, '-');
 
   if (store.setName === setName) {
     vscode.window.showInformationMessage(

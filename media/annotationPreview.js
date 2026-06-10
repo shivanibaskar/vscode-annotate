@@ -62,15 +62,36 @@
   }
 
   // ── Fetch annotations from the workspace .vscode directory ─────────────────
+  // Kept in sync with SET_NAME_PATTERN in src/annotationStore.ts (this script
+  // runs sandboxed in the preview WebView and cannot import from the extension).
+  var SET_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+
+  function fetchJson(url) {
+    return fetch(url, { cache: 'no-store' }).then(function (resp) {
+      if (!resp.ok) { throw new Error('HTTP ' + resp.status); }
+      return resp.json();
+    });
+  }
+
   function loadAnnotations(resourceBase) {
     var base = resourceBase.endsWith('/') ? resourceBase : resourceBase + '/';
-    var url = base + '.vscode/annotations.json';
-    return fetch(url, { cache: 'no-store' })
-      .then(function (resp) {
-        if (!resp.ok) { return []; }
-        return resp.json().then(function (json) {
-          return (json && Array.isArray(json.annotations)) ? json.annotations : [];
-        });
+    var defaultUrl = base + '.vscode/annotations.json';
+
+    // The extension maintains a pointer file naming the active annotation set;
+    // without it (or on any error) fall back to the default set.
+    return fetchJson(base + '.vscode/annotate-active-set.json')
+      .then(function (pointer) {
+        var set = pointer && typeof pointer.set === 'string' ? pointer.set : '';
+        if (set && set !== 'default' && SET_NAME_PATTERN.test(set)) {
+          // Stale pointer to a deleted set file → fall back to the default set.
+          return fetchJson(base + '.vscode/annotations-' + set + '.json')
+            .catch(function () { return fetchJson(defaultUrl); });
+        }
+        return fetchJson(defaultUrl);
+      })
+      .catch(function () { return fetchJson(defaultUrl); })
+      .then(function (json) {
+        return (json && Array.isArray(json.annotations)) ? json.annotations : [];
       })
       .catch(function () { return []; });
   }

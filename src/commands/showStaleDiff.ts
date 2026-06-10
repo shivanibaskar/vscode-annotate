@@ -4,6 +4,7 @@ import { AnnotationNode } from '../annotationsTreeProvider';
 import { Annotation, HoverArg } from '../types';
 import { isAnnotationStale } from '../staleDetector';
 import { SNAPSHOT_SCHEME } from '../annotationSnapshotProvider';
+import { resolveFileUri, toFileUri } from '../workspaceUtils';
 
 /**
  * Opens VS Code's diff editor showing the original snapshot of an annotation
@@ -44,7 +45,7 @@ export async function showStaleDiff(
       vscode.window.showWarningMessage('Annotate: No active editor.');
       return;
     }
-    const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+    const relPath = toFileUri(editor.document.uri);
     const cursorLine = editor.selection.active.line;
     const data = await store.load();
     annotation = data.annotations.find(
@@ -67,10 +68,9 @@ export async function showStaleDiff(
   }
 
   // Check whether it is actually stale before opening the diff.
-  const folders = vscode.workspace.workspaceFolders;
-  if (folders?.length) {
+  const fileUri = resolveFileUri(annotation.fileUri);
+  if (fileUri) {
     try {
-      const fileUri = vscode.Uri.joinPath(folders[0].uri, annotation.fileUri);
       const raw = await vscode.workspace.fs.readFile(fileUri);
       const docText = Buffer.from(raw).toString('utf8');
       if (!isAnnotationStale(annotation, docText)) {

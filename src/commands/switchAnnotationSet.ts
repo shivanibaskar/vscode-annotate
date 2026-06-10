@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { AnnotationStore } from '../annotationStore';
+import { AnnotationStore, SET_NAME_PATTERN } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
 
 const NEW_SET_LABEL = '$(add) New set…';
@@ -28,13 +28,13 @@ export async function switchAnnotationSet(
 
   if (pick.label === NEW_SET_LABEL) {
     const input = await vscode.window.showInputBox({
-      prompt: 'New annotation set name (alphanumeric, hyphens allowed)',
+      prompt: 'New annotation set name (letters, numbers, dots, underscores, hyphens)',
       placeHolder: 'auth-refactor',
       ignoreFocusOut: true,
       validateInput: v => {
         if (!v.trim()) { return 'Name cannot be empty.'; }
-        if (!/^[a-zA-Z0-9-]+$/.test(v.trim())) {
-          return 'Use only letters, numbers, and hyphens.';
+        if (!SET_NAME_PATTERN.test(v.trim())) {
+          return 'Use only letters, numbers, dots, underscores, and hyphens.';
         }
         return undefined;
       },

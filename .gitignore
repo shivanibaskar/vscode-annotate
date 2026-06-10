@@ -12,3 +12,6 @@ CLAUDE.md
 .vscode/annotations.json
 # Named sets (e.g. .vscode/annotations-auth-refactor.json):
 .vscode/annotations-*.json
+# Active-set pointer for the markdown preview overlay — per-machine UI state,
+# never commit it.
+.vscode/annotate-active-set.json

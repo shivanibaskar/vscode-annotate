@@ -24,6 +24,7 @@ import { registerTerminalCloseListener } from './commands/exportToTerminal';
 import { copyFileAnnotations } from './commands/copyFileAnnotations';
 import { copyToClipboard } from './commands/copyToClipboard';
 import { annotationToRange } from './rangeUtils';
+import { resolveFileUri, toFileUri } from './workspaceUtils';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -76,6 +77,9 @@ export function activate(context: vscode.ExtensionContext): void {
   registerTerminalCloseListener(context);
   updateTreeViewTitle();
   void updateStatusBar();
+  // Correct a stale active-set pointer left by a previous session (the store
+  // always boots on the default set). Does not create the file if absent.
+  store.syncActiveSetPointer();
 
   /**
    * Refreshes the built-in Markdown preview if one is currently open, so the
@@ -91,6 +95,9 @@ export function activate(context: vscode.ExtensionContext): void {
       )
     );
     if (!hasPreview) { return; }
+    // Make sure pending annotation/pointer writes have landed on disk before
+    // the preview script re-fetches them, or it would render stale data.
+    await store.flush();
     try {
       await vscode.commands.executeCommand('markdown.preview.refresh');
     } catch {
@@ -113,11 +120,12 @@ export function activate(context: vscode.ExtensionContext): void {
   // ── First-install welcome notification ────────────────────────────────────
   if (!context.globalState.get<boolean>('annotate.welcomed')) {
     void context.globalState.update('annotate.welcomed', true);
+    const mod = process.platform === 'darwin' ? '⌘' : 'Ctrl';
     vscode.window.showInformationMessage(
       'LLM Annotator ready! ' +
-      `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Shift+H to annotate, ` +
-      `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Shift+X to export, ` +
-      `${process.platform === 'darwin' ? '⌘' : 'Ctrl'}+Shift+F to search.`,
+      `${mod}+Shift+H to annotate, ` +
+      `${mod}+Shift+A then X to export, ` +
+      `${mod}+Shift+A then F to search.`,
       'Got it'
     );
   }
@@ -217,7 +225,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     // Keep annotation ranges in sync as the user edits files.
     vscode.workspace.onDidChangeTextDocument(async event => {
-      const relPath = vscode.workspace.asRelativePath(event.document.uri, false);
+      const relPath = toFileUri(event.document.uri);
       await store.shiftAnnotations(relPath, event.contentChanges);
       const editor = vscode.window.visibleTextEditors.find(
         e => e.document === event.document
@@ -252,9 +260,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       'annotate.revealAnnotation',
       async (annotation: Annotation) => {
-        const folders = vscode.workspace.workspaceFolders;
-        if (!folders?.length) { return; }
-        const uri = vscode.Uri.joinPath(folders[0].uri, annotation.fileUri);
+        const uri = resolveFileUri(annotation.fileUri);
+        if (!uri) { return; }
         const doc = await vscode.workspace.openTextDocument(uri);
         const editor = await vscode.window.showTextDocument(doc);
         // Character-precise so the selection matches exactly what was annotated.

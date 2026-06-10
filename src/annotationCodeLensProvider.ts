@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from './annotationStore';
 import { Annotation, AnnotationTag } from './types';
+import { toFileUri } from './workspaceUtils';
 
 const TAG_ICONS: Record<AnnotationTag, string> = {
   bug:       '$(bug)',
@@ -37,7 +38,7 @@ export class AnnotationCodeLensProvider implements vscode.CodeLensProvider {
       return [];
     }
 
-    const relPath = vscode.workspace.asRelativePath(document.uri, false);
+    const relPath = toFileUri(document.uri);
     const annotations = await this.store.getForFile(relPath);
     const lenses: vscode.CodeLens[] = [];
 

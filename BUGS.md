@@ -3,6 +3,85 @@
 > **Open bugs are tracked on [GitHub Issues](https://github.com/shivanibaskar/vscode-annotate/issues).**
 > This file is a historical archive of fixed bugs.
 
+## Fixed (0.1.4 — Compatibility & correctness, 2026-06-09)
+
+### UX-001 — Keybindings shadowed core VS Code shortcuts
+
+**Status:** Fixed
+**Reported:** 2026-06-09
+**Fixed:** 2026-06-09
+
+**Description:**
+Eight default keybindings (`Cmd/Ctrl+Shift+E/D/X/M/F/T/C/Backspace`, all `when: editorTextFocus`) shadowed built-in VS Code shortcuts — search across files, Explorer, Run & Debug, Extensions, Problems panel, replace in files — whenever the editor had focus.
+
+**Fix:** All bindings except the headline `Cmd/Ctrl+Shift+H` (Annotate Selection) moved to two-stroke chords under the `Cmd/Ctrl+Shift+A` leader (e.g. `⌘⇧A E` edit, `⌘⇧A X` export). Welcome toast and README updated.
+
+**Affected files:** `package.json`, `src/extension.ts`, `README.md`
+
+---
+
+### BUG-011 — Markdown preview overlay ignored named annotation sets
+
+**Status:** Fixed
+**Reported:** 2026-06-09 (known limitation since P4)
+**Fixed:** 2026-06-09
+
+**Description:**
+`media/annotationPreview.js` hardcoded `.vscode/annotations.json`, so with a named/branch set active the preview rendered the wrong (default) set's annotations.
+
+**Fix:** The store now writes a pointer file `.vscode/annotate-active-set.json` on every set switch (enqueued on the flush queue so it can't race the preview refresh; the extension awaits `store.flush()` before `markdown.preview.refresh`). The preview script reads the pointer, validates the set name, fetches `annotations-<set>.json`, and falls back to the default set if the pointer or set file is missing. At activation a stale pointer from a previous session is corrected without creating the file for users who never switch sets.
+
+**Affected files:** `media/annotationPreview.js`, `src/annotationStore.ts`, `src/extension.ts`
+
+---
+
+### BUG-012 — Set-name validation inconsistent with sanitized branch names
+
+**Status:** Fixed
+**Reported:** 2026-06-09
+**Fixed:** 2026-06-09
+
+**Description:**
+`syncWithBranch` sanitized only `[/\\:*?"<>|]`, so branches like `release/1.2.0` produced set names with dots (`release-1.2.0`) that the `[a-zA-Z0-9-]+` allowlists in `listSets` and the new-set input validator rejected — the set file was written but invisible in the picker (and would have broken the preview pointer).
+
+**Fix:** Single shared `SET_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/` exported from `annotationStore.ts`, used by `listSets`, the new-set validator, and (duplicated, with a sync comment) the preview script. `syncWithBranch` now sanitizes with the inverse class `[^a-zA-Z0-9._-]`.
+
+**Affected files:** `src/annotationStore.ts`, `src/commands/switchAnnotationSet.ts`, `src/commands/syncWithBranch.ts`, `media/annotationPreview.js`
+
+---
+
+### BUG-013 — Multi-root workspaces resolved every annotation against the first folder
+
+**Status:** Fixed
+**Reported:** 2026-06-09
+**Fixed:** 2026-06-09
+
+**Description:**
+Annotation `fileUri`s were stored relative to their own folder (`asRelativePath(uri, false)`) but resolved back via `joinPath(workspaceFolders[0].uri, fileUri)` in reveal, search, export, stale-diff, and snapshot code — files in any folder but the first opened/exported the wrong path. Same-named files in different folders also collided as annotation keys.
+
+**Fix:** New `src/workspaceUtils.ts`: `toFileUri()` stores folder-name-prefixed paths in multi-root workspaces (single-root output unchanged, so existing data keeps working), and `resolveFileUri()` resolves the prefix back to the right folder (longest-name match) with a centralized path-traversal containment guard — which also extends the guard to reveal/search/snapshot paths that previously had none. All 13 matcher sites and 6 resolution sites migrated. Annotation files themselves remain under the first folder's `.vscode/` by convention.
+
+**Known limitations:** renaming a workspace folder orphans its annotations; the markdown preview overlay reads annotation files only from the first folder.
+
+**Affected files:** `src/workspaceUtils.ts` (new), `src/extension.ts`, `src/decorations.ts`, `src/hoverProvider.ts`, `src/annotationCodeLensProvider.ts`, `src/annotationSnapshotProvider.ts`, `src/commands/*` (11 files)
+
+---
+
+### SEC-007 — Terminal export injected untrusted annotation text into the shell
+
+**Status:** Fixed
+**Reported:** 2026-06-09
+**Fixed:** 2026-06-09
+
+**Description:**
+With Workspace Trust in Restricted Mode, a committed malicious `annotations.json` could put multi-line comments into the export that `exportToTerminal` pipes into a live terminal via `sendText` — embedded newlines can execute commands (bracketed paste is not guaranteed).
+
+**Fix:** `exportToTerminal` is gated on `vscode.workspace.isTrusted` with an explanatory warning. `package.json` now declares `capabilities.untrustedWorkspaces: "limited"` (everything else works in Restricted Mode) and `capabilities.virtualWorkspaces: false`.
+
+**Affected files:** `src/commands/exportToTerminal.ts`, `package.json`
+
+---
+
 ## Fixed (Char-precise attribution — 2026-06-09)
 
 ### BUG-002 — Partial-line annotation attributed to the whole line in hover, reveal, and search

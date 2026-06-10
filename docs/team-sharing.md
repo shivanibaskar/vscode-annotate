@@ -32,6 +32,13 @@ Set") to create or switch sets. Each set lives in its own file:
 
 To share a named set, commit its file the same way as above.
 
+Set names may contain letters, numbers, dots, underscores, and hyphens —
+sanitized git branch names like `release-1.2.0` work directly.
+
+> **Do not commit `.vscode/annotate-active-set.json`.** It is per-machine UI
+> state (which set the Markdown preview overlay reads) and will differ between
+> teammates — keep it in `.gitignore`.
+
 ## Conflict resolution
 
 If two team members edit the same annotation file, resolve conflicts the same

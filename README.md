@@ -21,7 +21,7 @@ Stop retyping your investigation notes into chat. Highlight what matters, write 
 1. Select some lines in any file.
 2. Press **⌘⇧H** (macOS) or **Ctrl+Shift+H** (Win/Linux) — or right-click → *Annotate Selection*.
 3. Type your comment, press Enter. Pick a tag (or press Esc to skip tagging).
-4. Keep annotating. When you're ready, press **⌘⇧X** / **Ctrl+Shift+X** to open the export preview, or **⌘⇧C** / **Ctrl+Shift+C** to copy the current file's annotations straight to the clipboard.
+4. Keep annotating. When you're ready, press **⌘⇧A then X** / **Ctrl+Shift+A then X** to open the export preview, or **⌘⇧A then C** / **Ctrl+Shift+A then C** to copy the current file's annotations straight to the clipboard.
 5. Paste into your LLM, add your question, hit send.
 
 The **LLM Annotator** activity-bar icon opens a sidebar that lists every annotation in the workspace, grouped by file.
@@ -63,7 +63,7 @@ Each annotation captures a snapshot of the lines it covers. When those lines cha
 Drop `@question`, `@critical`, `@todo` — any `@word` — into your comments. Run **Export Filtered Annotations (by @mention)** to pick which tags to include in the export.
 
 ### Send to terminal (Claude Code workflow)
-**⌘⇧T** / **Ctrl+Shift+T** injects the export into an open VS Code terminal *without* pressing Enter, so you can append your question and submit when ready. Designed for terminal-based agents like Claude Code.
+**⌘⇧A then T** / **Ctrl+Shift+A then T** injects the export into an open VS Code terminal *without* pressing Enter, so you can append your question and submit when ready. Designed for terminal-based agents like Claude Code. (Disabled in Restricted Mode — see [Workspace Trust](#requirements).)
 
 ---
 
@@ -71,16 +71,18 @@ Drop `@question`, `@critical`, `@todo` — any `@word` — into your comments. R
 
 All commands live under the **Annotate** category in the Command Palette.
 
+Annotate Selection keeps its own shortcut; everything else lives behind the **⌘⇧A** / **Ctrl+Shift+A** chord leader (press the leader, release, then press the second key). Chords avoid shadowing built-in VS Code shortcuts like ⌘⇧F (search) and ⌘⇧E (Explorer).
+
 | Command | Shortcut (Mac / Win+Linux) |
 |---------|----------------------------|
 | Annotate Selection | ⌘⇧H / Ctrl+Shift+H |
-| Edit Annotation | ⌘⇧E / Ctrl+Shift+E |
-| Delete Annotation | ⌘⇧D / Ctrl+Shift+D |
-| Export Annotations for LLM | ⌘⇧X / Ctrl+Shift+X |
-| Export Annotations as Markdown | ⌘⇧M / Ctrl+Shift+M |
-| Search Annotations | ⌘⇧F / Ctrl+Shift+F |
-| Send Annotations to Terminal (Claude Code) | ⌘⇧T / Ctrl+Shift+T |
-| Copy File Annotations to Clipboard | ⌘⇧C / Ctrl+Shift+C |
+| Edit Annotation | ⌘⇧A then E / Ctrl+Shift+A then E |
+| Delete Annotation | ⌘⇧A then D / Ctrl+Shift+A then D |
+| Export Annotations for LLM | ⌘⇧A then X / Ctrl+Shift+A then X |
+| Export Annotations as Markdown | ⌘⇧A then M / Ctrl+Shift+A then M |
+| Search Annotations | ⌘⇧A then F / Ctrl+Shift+A then F |
+| Send Annotations to Terminal (Claude Code) | ⌘⇧A then T / Ctrl+Shift+A then T |
+| Copy File Annotations to Clipboard | ⌘⇧A then C / Ctrl+Shift+A then C |
 | Copy All Annotations to Clipboard | — |
 | Export Current File's Annotations | — |
 | Export Filtered Annotations (by @mention) | — |
@@ -88,7 +90,9 @@ All commands live under the **Annotate** category in the Command Palette.
 | Use Current Git Branch as Annotation Set | — |
 | Show Stale Annotation Diff | — |
 | Sort Annotations | — |
-| Clear Annotations… | ⌘⇧⌫ / Ctrl+Shift+Backspace |
+| Clear Annotations… | ⌘⇧A then ⌫ / Ctrl+Shift+A then Backspace |
+
+> Using the JetBrains keymap extension? It binds Ctrl/Cmd+Shift+A to "Find Action" — rebind either one in Keyboard Shortcuts.
 
 Clearing has a 10-second **Undo** window. The clear dialog lets you scope to the current file or the entire workspace.
 
@@ -109,10 +113,11 @@ Clearing has a 10-second **Undo** window. The clear dialog lets you scope to the
 
 ## Storage format
 
-Annotations are stored as JSON at the workspace root:
+Annotations are stored as JSON at the workspace root (in a multi-root workspace: the first folder):
 
 - Default set: `.vscode/annotations.json`
 - Named / branch set: `.vscode/annotations-<name>.json`
+- Active-set pointer (read by the Markdown preview overlay): `.vscode/annotate-active-set.json` — per-machine UI state, add it to `.gitignore`
 
 Schema (version 1):
 
@@ -134,7 +139,9 @@ Schema (version 1):
 }
 ```
 
-Set names are restricted to `[a-zA-Z0-9-]+`. Check this file into git to share annotations, or `.gitignore` it if they're personal.
+Set names are restricted to `[a-zA-Z0-9._-]+` (sanitized branch names like `release-1.2.0` and `feat_x` work as-is). Check this file into git to share annotations, or `.gitignore` it if they're personal.
+
+In a multi-root workspace, `fileUri` is prefixed with the workspace folder's name (`backend/src/foo.ts`) so annotations resolve to the right folder. Renaming a workspace folder orphans its annotations until the prefix is updated. The Markdown preview overlay only reads annotation files from the first workspace folder.
 
 ---
 
@@ -155,8 +162,10 @@ Set names are restricted to `[a-zA-Z0-9-]+`. Check this file into git to share a
 ## Requirements
 
 - VS Code `^1.88.0`
-- A workspace folder (annotations are scoped per workspace)
+- A workspace folder (annotations are scoped per workspace; multi-root workspaces are supported, with annotation files stored under the first folder)
 - Git extension is optional — used only for branch-aware sets; extension degrades gracefully without it
+- Workspace Trust: everything works in Restricted Mode except **Send Annotations to Terminal**, which is disabled because comments from a committed `annotations.json` would be piped into your shell
+- Not available in virtual workspaces (e.g. vscode.dev) — the extension reads files from the local filesystem
 
 ---
 

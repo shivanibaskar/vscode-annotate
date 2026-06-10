@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AnnotationStore } from '../annotationStore';
 import { DecorationsManager } from '../decorations';
 import { showAnnotationInput } from '../ui/annotationInput';
+import { toFileUri } from '../workspaceUtils';
 
 export async function annotateSelection(
   store: AnnotationStore,
@@ -27,7 +28,7 @@ export async function annotateSelection(
   }
   // Empty comment is already prevented by showAnnotationInput's InputBox validator.
 
-  const fileUri = vscode.workspace.asRelativePath(editor.document.uri, false);
+  const fileUri = toFileUri(editor.document.uri);
   const now = new Date().toISOString();
 
   // If selection ends at column 0, the last line isn't really included —

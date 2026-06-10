@@ -3,6 +3,7 @@ import { AnnotationTag } from './types';
 import { AnnotationStore } from './annotationStore';
 import { isAnnotationStale } from './staleDetector';
 import { annotationToRange } from './rangeUtils';
+import { toFileUri } from './workspaceUtils';
 
 const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
   bug:       'errorForeground',
@@ -102,7 +103,7 @@ export class DecorationsManager {
   }
 
   async refresh(editor: vscode.TextEditor): Promise<void> {
-    const relPath = vscode.workspace.asRelativePath(editor.document.uri, false);
+    const relPath = toFileUri(editor.document.uri);
     const annotations = await this.store.getForFile(relPath);
     const docText = editor.document.getText();
 

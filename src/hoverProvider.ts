@@ -3,6 +3,7 @@ import { Annotation } from './types';
 import { AnnotationStore } from './annotationStore';
 import { parseMentions } from './mentions';
 import { annotationToRange } from './rangeUtils';
+import { toFileUri } from './workspaceUtils';
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -23,7 +24,7 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
     document: vscode.TextDocument,
     position: vscode.Position
   ): Promise<vscode.Hover | undefined> {
-    const relPath = vscode.workspace.asRelativePath(document.uri, false);
+    const relPath = toFileUri(document.uri);
     const annotations = await this.store.getForFile(relPath);
 
     // Match against the character-precise range so an annotation on part of

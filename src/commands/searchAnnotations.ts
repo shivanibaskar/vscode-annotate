@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
 import { annotationToRange } from '../rangeUtils';
+import { resolveFileUri } from '../workspaceUtils';
 
 interface AnnotationQuickPickItem extends vscode.QuickPickItem {
   annotation: Annotation;
@@ -41,10 +42,9 @@ export async function searchAnnotations(store: AnnotationStore): Promise<void> {
   if (!pick) { return; }
 
   const annotation = pick.annotation;
-  const folders = vscode.workspace.workspaceFolders;
-  if (!folders?.length) { return; }
+  const uri = resolveFileUri(annotation.fileUri);
+  if (!uri) { return; }
 
-  const uri = vscode.Uri.joinPath(folders[0].uri, annotation.fileUri);
   const doc = await vscode.workspace.openTextDocument(uri);
   const editor = await vscode.window.showTextDocument(doc);
 

@@ -73,7 +73,10 @@ suite('AnnotationSnapshotProvider', () => {
     Object.defineProperty(vscode.workspace, 'workspaceFolders', { get: () => undefined, configurable: true });
     try {
       const content = await provider.provideTextDocumentContent(makeUri('current', 'snap-3'));
-      assert.ok(content.includes('No workspace'), `Expected no-workspace message, got: ${content}`);
+      assert.ok(
+        content.includes('Could not resolve file in workspace'),
+        `Expected unresolvable-file message, got: ${content}`
+      );
     } finally {
       if (origFolders) {
         Object.defineProperty(vscode.workspace, 'workspaceFolders', origFolders);
