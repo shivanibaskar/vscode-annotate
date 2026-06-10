@@ -3,6 +3,7 @@ import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
 import { langFromPath, isProseFile } from '../langUtils';
 import { toFileUri } from '../workspaceUtils';
+import { exportableAnnotations } from './exportFilter';
 
 /**
  * Formats a single annotation as a clean, clipboard-ready block.
@@ -64,11 +65,16 @@ export async function copyFileAnnotations(store: AnnotationStore): Promise<void>
   }
 
   const relPath = toFileUri(editor.document.uri);
-  const annotations = (await store.getForFile(relPath))
+  const all = await store.getForFile(relPath);
+  const annotations = exportableAnnotations(all)
     .sort((a, b) => a.range.start - b.range.start);
 
   if (annotations.length === 0) {
-    vscode.window.showWarningMessage(`Annotate: No annotations for ${relPath}.`);
+    vscode.window.showWarningMessage(
+      all.length > 0
+        ? `Annotate: All annotations in ${relPath} are resolved — nothing to copy.`
+        : `Annotate: No annotations for ${relPath}.`
+    );
     return;
   }
 

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { collectAllMentions, commentHasMention } from '../mentions';
 import { exportForLLM } from './exportForLLM';
+import { exportableAnnotations, noExportMessage } from './exportFilter';
 
 /**
  * Prompts the user to pick one or more @mention tags, then exports only
@@ -13,13 +14,16 @@ import { exportForLLM } from './exportForLLM';
  */
 export async function exportFiltered(store: AnnotationStore): Promise<void> {
   const data = await store.load();
+  // Collect mentions only from exportable annotations — a mention that exists
+  // solely in resolved annotations would otherwise lead to a dead-end export.
+  const exportable = exportableAnnotations(data.annotations);
 
-  if (data.annotations.length === 0) {
-    vscode.window.showWarningMessage('Annotate: No annotations to export.');
+  if (exportable.length === 0) {
+    vscode.window.showWarningMessage(noExportMessage(data.annotations.length));
     return;
   }
 
-  const allMentions = collectAllMentions(data.annotations.map(a => a.comment));
+  const allMentions = collectAllMentions(exportable.map(a => a.comment));
 
   if (allMentions.length === 0) {
     vscode.window.showInformationMessage(
@@ -47,7 +51,7 @@ export async function exportFiltered(store: AnnotationStore): Promise<void> {
   }
 
   const selectedMentions = new Set(picked.map(p => p.label));
-  const filtered = data.annotations.filter(a =>
+  const filtered = exportable.filter(a =>
     commentHasMention(a.comment, selectedMentions)
   );
 

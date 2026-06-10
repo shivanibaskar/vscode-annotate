@@ -27,7 +27,8 @@ export async function searchAnnotations(store: AnnotationStore): Promise<void> {
     .sort((a, b) => a.fileUri.localeCompare(b.fileUri) || a.range.start - b.range.start)
     .map(ann => ({
       label: ann.comment,
-      description: `${path.basename(ann.fileUri)} · ${lineLabel(ann.range.start, ann.range.end)}`,
+      description: `${path.basename(ann.fileUri)} · ${lineLabel(ann.range.start, ann.range.end)}` +
+        (ann.resolved ? ' · ✓ resolved' : ''),
       detail: ann.tag ? `[${ann.tag}]  ${ann.fileUri}` : ann.fileUri,
       annotation: ann,
     }));

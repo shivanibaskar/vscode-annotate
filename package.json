@@ -2,7 +2,7 @@
   "name": "vscode-annotate",
   "displayName": "LLM Annotator",
   "description": "Annotate code and markdown selections with comments and tags, then export them as structured LLM context.",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "publisher": "ShivaniBaskar",
   "icon": "media/logo.png",
   "repository": {
@@ -158,6 +158,24 @@
         "title": "Copy All Annotations to Clipboard",
         "category": "Annotate",
         "icon": "$(clippy)"
+      },
+      {
+        "command": "annotate.toggleResolved",
+        "title": "Resolve / Reopen Annotation",
+        "category": "Annotate",
+        "icon": "$(check)"
+      },
+      {
+        "command": "annotate.hideResolved",
+        "title": "Hide Resolved Annotations",
+        "category": "Annotate",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "annotate.showResolved",
+        "title": "Show Resolved Annotations",
+        "category": "Annotate",
+        "icon": "$(eye-closed)"
       }
     ],
     "menus": {
@@ -178,39 +196,59 @@
           "group": "annotate@3"
         },
         {
-          "command": "annotate.exportCurrentFile",
+          "command": "annotate.toggleResolved",
           "when": "editorTextFocus",
           "group": "annotate@4"
         },
         {
-          "command": "annotate.clearAnnotations",
+          "command": "annotate.exportCurrentFile",
           "when": "editorTextFocus",
           "group": "annotate@5"
         },
         {
-          "command": "annotate.copyFileAnnotations",
+          "command": "annotate.clearAnnotations",
           "when": "editorTextFocus",
           "group": "annotate@6"
+        },
+        {
+          "command": "annotate.copyFileAnnotations",
+          "when": "editorTextFocus",
+          "group": "annotate@7"
         }
       ],
       "view/item/context": [
         {
-          "command": "annotate.editAnnotation",
+          "command": "annotate.toggleResolved",
           "when": "view == annotate.annotationsView && viewItem == annotationNode",
           "group": "annotate@1"
         },
         {
-          "command": "annotate.deleteAnnotation",
+          "command": "annotate.editAnnotation",
           "when": "view == annotate.annotationsView && viewItem == annotationNode",
           "group": "annotate@2"
         },
         {
-          "command": "annotate.showStaleDiff",
+          "command": "annotate.deleteAnnotation",
           "when": "view == annotate.annotationsView && viewItem == annotationNode",
           "group": "annotate@3"
+        },
+        {
+          "command": "annotate.showStaleDiff",
+          "when": "view == annotate.annotationsView && viewItem == annotationNode",
+          "group": "annotate@4"
         }
       ],
       "view/title": [
+        {
+          "command": "annotate.hideResolved",
+          "when": "view == annotate.annotationsView && annotate.showResolved",
+          "group": "navigation"
+        },
+        {
+          "command": "annotate.showResolved",
+          "when": "view == annotate.annotationsView && !annotate.showResolved",
+          "group": "navigation"
+        },
         {
           "command": "annotate.refreshAnnotationsView",
           "when": "view == annotate.annotationsView",
@@ -287,6 +325,12 @@
         "key": "ctrl+shift+a backspace",
         "mac": "cmd+shift+a backspace",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "annotate.toggleResolved",
+        "key": "ctrl+shift+a r",
+        "mac": "cmd+shift+a r",
+        "when": "editorTextFocus"
       }
     ],
     "markdown.previewScripts": [
@@ -310,7 +354,7 @@
           ],
           "enumDescriptions": [
             "Plain text header/footer (=== ANNOTATED CODE CONTEXT ===)",
-            "Claude XML tags (<annotated_context>…</annotated_context>)",
+            "Claude XML tags (<code_annotations>…</code_annotations>)",
             "GPT-style fenced block (```annotated-context … ```)",
             "Custom header/footer defined in annotate.promptTemplateCustom"
           ],
@@ -332,6 +376,16 @@
           "default": 0,
           "minimum": 0,
           "description": "Number of lines above and below each annotated range to include in the export. Gives the LLM surrounding context without requiring a wider selection. Set to 0 to disable. Context appears in a separate CONTEXT BEFORE/AFTER block (plain templates) or <context> element (claude template)."
+        },
+        "annotate.exportIncludeResolved": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include resolved annotations in exports. By default resolved annotations are excluded so the LLM only sees open items."
+        },
+        "annotate.sidebarShowResolved": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show resolved annotations in the sidebar panel. Toggle quickly with the eye icon in the panel toolbar."
         },
         "annotate.sidebarSortMode": {
           "type": "string",

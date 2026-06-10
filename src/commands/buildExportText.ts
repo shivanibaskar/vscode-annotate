@@ -3,6 +3,7 @@ import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
 import { langFromPath, isProseFile } from '../langUtils';
 import { resolveFileUri } from '../workspaceUtils';
+import { exportableAnnotations } from './exportFilter';
 
 async function readLines(fileUri: string): Promise<string[] | null> {
   // resolveFileUri picks the right folder in multi-root workspaces and rejects
@@ -204,13 +205,18 @@ function resolveWrapper(template: PromptTemplate, customTemplate: string): { hea
  * (`<code_annotations>`) following Anthropic's recommended grounding format.
  * All other templates produce plain/fenced text blocks.
  *
- * Returns `null` if there are no annotations (callers show their own warning).
+ * Resolved annotations are excluded unless `annotate.exportIncludeResolved`
+ * is enabled.
+ *
+ * Returns `null` if there are no exportable annotations (callers show their
+ * own warning — see `noExportMessage` for the resolved-aware variant).
  *
  * @param store - The active annotation store.
  */
 export async function buildExportText(store: AnnotationStore): Promise<string | null> {
   const data = await store.load();
-  if (data.annotations.length === 0) { return null; }
+  const annotations = exportableAnnotations(data.annotations);
+  if (annotations.length === 0) { return null; }
 
   const config          = vscode.workspace.getConfiguration('annotate');
   const includeContents = config.get<boolean>('includeFileContents', true);
@@ -221,7 +227,7 @@ export async function buildExportText(store: AnnotationStore): Promise<string | 
   const contextLines    = Math.max(0, config.get<number>('exportContextLines', 0));
 
   const byFile = new Map<string, Annotation[]>();
-  for (const annotation of data.annotations) {
+  for (const annotation of annotations) {
     const list = byFile.get(annotation.fileUri) ?? [];
     list.push(annotation);
     byFile.set(annotation.fileUri, list);

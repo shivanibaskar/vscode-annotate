@@ -178,6 +178,7 @@ export class AnnotationStore {
     if ((range['start'] as number) < 0 || (range['end'] as number) < (range['start'] as number)) { return false; }
 
     if (a['tag'] !== undefined && !VALID_TAGS.has(a['tag'] as AnnotationTag)) { return false; }
+    if (a['resolved'] !== undefined && typeof a['resolved'] !== 'boolean') { return false; }
 
     return true;
   }

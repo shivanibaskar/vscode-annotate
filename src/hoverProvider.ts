@@ -54,12 +54,14 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
         md.appendMarkdown('\n\n---\n\n');
       }
 
-      // Header: icon + label + timestamp
+      // Header: icon + label + timestamp; resolved annotations get a check icon.
       const wasEdited = ann.updatedAt !== ann.createdAt;
       const timestampLabel = wasEdited
         ? `edited ${formatTimestamp(ann.updatedAt)}`
         : `created ${formatTimestamp(ann.createdAt)}`;
-      md.appendMarkdown(`$(comment) **Annotation** &nbsp;*${timestampLabel}*\n\n`);
+      const headerIcon = ann.resolved ? '$(pass-filled)' : '$(comment)';
+      const headerLabel = ann.resolved ? '**Annotation (resolved)**' : '**Annotation**';
+      md.appendMarkdown(`${headerIcon} ${headerLabel} &nbsp;*${timestampLabel}*\n\n`);
 
       // Body: user-supplied comment — appendText escapes Markdown, preventing injection
       md.appendText(ann.comment);
@@ -71,12 +73,17 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
       }
 
       // Action buttons
-      const editLink   = commandLink('$(pencil) Edit',   'annotate.editAnnotation',   ann);
+      const editLink    = commandLink('$(pencil) Edit',   'annotate.editAnnotation',   ann);
+      const resolveLink = commandLink(
+        ann.resolved ? '$(history) Reopen' : '$(check) Resolve',
+        'annotate.toggleResolved',
+        ann
+      );
       const deleteLink = commandLink('$(trash) Delete', 'annotate.deleteAnnotation', ann);
       const diffLink   = ann.contentSnapshot
         ? ' &nbsp; ' + commandLink('$(diff) Diff', 'annotate.showStaleDiff', ann)
         : '';
-      md.appendMarkdown(`\n\n${editLink} &nbsp; ${deleteLink}${diffLink}`);
+      md.appendMarkdown(`\n\n${editLink} &nbsp; ${resolveLink} &nbsp; ${deleteLink}${diffLink}`);
     });
 
     return new vscode.Hover([md], hoverRange);

@@ -59,6 +59,13 @@ Run **Use Current Git Branch as Annotation Set** to create (or switch to) a set 
 ### Staleness detection
 Each annotation captures a snapshot of the lines it covers. When those lines change, the annotation is marked stale (amber gutter, dashed border). Right-click → **Show Stale Annotation Diff** to see the original vs. current side-by-side in VS Code's diff editor.
 
+### Resolve workflow
+Mark an annotation as done with **Resolve / Reopen Annotation** (**⌘⇧A then R**, the hover's ✓ link, or the sidebar context menu). Resolved annotations dim in the editor (gray border, faded text, green-check gutter icon) and in the Markdown preview, get a ✓ icon in the sidebar, and are **excluded from all exports by default** — so your LLM only sees open items. Reopen any time; nothing is deleted.
+
+- The eye icon in the sidebar toolbar hides/shows resolved annotations (`annotate.sidebarShowResolved`).
+- Set `annotate.exportIncludeResolved` to `true` to keep resolved annotations in exports.
+- The status bar shows open and resolved counts separately.
+
 ### @mention filtering
 Drop `@question`, `@critical`, `@todo` — any `@word` — into your comments. Run **Export Filtered Annotations (by @mention)** to pick which tags to include in the export.
 
@@ -78,6 +85,7 @@ Annotate Selection keeps its own shortcut; everything else lives behind the **�
 | Annotate Selection | ⌘⇧H / Ctrl+Shift+H |
 | Edit Annotation | ⌘⇧A then E / Ctrl+Shift+A then E |
 | Delete Annotation | ⌘⇧A then D / Ctrl+Shift+A then D |
+| Resolve / Reopen Annotation | ⌘⇧A then R / Ctrl+Shift+A then R |
 | Export Annotations for LLM | ⌘⇧A then X / Ctrl+Shift+A then X |
 | Export Annotations as Markdown | ⌘⇧A then M / Ctrl+Shift+A then M |
 | Search Annotations | ⌘⇧A then F / Ctrl+Shift+A then F |
@@ -90,6 +98,7 @@ Annotate Selection keeps its own shortcut; everything else lives behind the **�
 | Use Current Git Branch as Annotation Set | — |
 | Show Stale Annotation Diff | — |
 | Sort Annotations | — |
+| Hide / Show Resolved Annotations | — (eye icon in sidebar toolbar) |
 | Clear Annotations… | ⌘⇧A then ⌫ / Ctrl+Shift+A then Backspace |
 
 > Using the JetBrains keymap extension? It binds Ctrl/Cmd+Shift+A to "Find Action" — rebind either one in Keyboard Shortcuts.
@@ -107,7 +116,9 @@ Clearing has a 10-second **Undo** window. The clear dialog lets you scope to the
 | `annotate.promptTemplateCustom` | string | `""` | `"HEADER\|\|\|FOOTER"` for the `custom` template |
 | `annotate.exportPreamble` | string | `"Review the following annotated code…"` | Framing prompt prepended to every export (empty = disabled) |
 | `annotate.exportContextLines` | number | `0` | Surrounding lines above/below each range (0 = none) |
+| `annotate.exportIncludeResolved` | boolean | `false` | Include resolved annotations in exports |
 | `annotate.sidebarSortMode` | enum | `"file"` | Sidebar sort: `file` \| `date` \| `tag` |
+| `annotate.sidebarShowResolved` | boolean | `true` | Show resolved annotations in the sidebar |
 
 ---
 

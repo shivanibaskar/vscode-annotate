@@ -18,9 +18,12 @@
     important: { border: 'var(--vscode-charts-purple, #b180d7)',                        bg: 'rgba(177,128,215,0.07)'  },
   };
   var DEFAULT_COLOR = { border: 'var(--vscode-editorInfo-foreground, #4ec9b0)', bg: 'rgba(78,201,176,0.07)' };
+  // Resolved annotations: muted gray, mirroring the editor's dimmed decoration.
+  var RESOLVED_COLOR = { border: 'var(--vscode-disabledForeground, #888888)', bg: 'rgba(136,136,136,0.06)' };
 
-  function getColor(tag) {
-    return (tag && TAG_COLORS[tag]) || DEFAULT_COLOR;
+  function getColor(ann) {
+    if (ann.resolved) { return RESOLVED_COLOR; }
+    return (ann.tag && TAG_COLORS[ann.tag]) || DEFAULT_COLOR;
   }
 
   // ── Inject styles once ─────────────────────────────────────────────────────
@@ -114,6 +117,7 @@
       el.style.removeProperty('padding-left');
       el.style.removeProperty('margin-left');
       el.style.removeProperty('background-color');
+      el.style.removeProperty('opacity');
     }
     var badges = document.querySelectorAll('.vscode-annotate-badge');
     for (var j = 0; j < badges.length; j++) {
@@ -152,11 +156,17 @@
       var anns = lineMap[lineNum];
       if (!anns || anns.length === 0) { continue; }
 
-      var color = getColor(anns[0].tag);
+      var color = getColor(anns[0]);
       el.style.borderLeft = '3px solid ' + color.border;
       el.style.paddingLeft = '6px';
       el.style.marginLeft = '-9px';
       el.style.backgroundColor = color.bg;
+      // Dim the block only when every annotation covering it is resolved,
+      // mirroring the editor's dimmed decoration.
+      var allResolved = anns.every(function (a) { return a.resolved; });
+      if (allResolved) {
+        el.style.opacity = '0.55';
+      }
       el.setAttribute('data-vscode-annotate', '1');
 
       // Place a badge only at the first line of each annotation.
@@ -171,8 +181,10 @@
   }
 
   function makeBadge(ann) {
-    var color = getColor(ann.tag);
-    var label = ann.tag ? ('\u270e ' + ann.tag) : '\u270e';
+    var color = getColor(ann);
+    var label = ann.resolved
+      ? '\u2714 resolved'
+      : ann.tag ? ('\u270e ' + ann.tag) : '\u270e';
     var badge = document.createElement('span');
     badge.className = 'vscode-annotate-badge';
     badge.style.background = color.bg;

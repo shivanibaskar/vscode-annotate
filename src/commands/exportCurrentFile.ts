@@ -3,6 +3,7 @@ import { AnnotationStore } from '../annotationStore';
 import { ExportPreviewPanel } from '../panels/exportPreviewPanel';
 import { Annotation } from '../types';
 import { toFileUri } from '../workspaceUtils';
+import { exportableAnnotations } from './exportFilter';
 
 const LANG_MAP: Record<string, string> = {
   ts: 'typescript', tsx: 'typescript',
@@ -59,11 +60,16 @@ export async function exportCurrentFile(store: AnnotationStore): Promise<void> {
   }
 
   const relPath = toFileUri(editor.document.uri);
-  const annotations = (await store.getForFile(relPath))
+  const all = await store.getForFile(relPath);
+  const annotations = exportableAnnotations(all)
     .sort((a, b) => a.range.start - b.range.start);
 
   if (annotations.length === 0) {
-    vscode.window.showWarningMessage(`Annotate: No annotations for ${relPath}.`);
+    vscode.window.showWarningMessage(
+      all.length > 0
+        ? `Annotate: All annotations in ${relPath} are resolved — nothing to export.`
+        : `Annotate: No annotations for ${relPath}.`
+    );
     return;
   }
 

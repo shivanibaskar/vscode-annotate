@@ -93,7 +93,10 @@ function summaryLens(range: vscode.Range, annotations: Annotation[]): vscode.Cod
 }
 
 function previewLens(range: vscode.Range, annotation: Annotation): vscode.CodeLens {
-  const icon = annotation.tag ? TAG_ICONS[annotation.tag] : '$(comment)';
+  // Resolved state wins over the tag icon so "done" is visible at a glance.
+  const icon = annotation.resolved
+    ? '$(pass-filled)'
+    : annotation.tag ? TAG_ICONS[annotation.tag] : '$(comment)';
   const preview = annotation.comment.length > MAX_PREVIEW_LEN
     ? `${annotation.comment.slice(0, MAX_PREVIEW_LEN)}…`
     : annotation.comment;

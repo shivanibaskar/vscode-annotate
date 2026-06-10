@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
 import { resolveFileUri } from '../workspaceUtils';
+import { exportableAnnotations, noExportMessage } from './exportFilter';
 
 const LANG_MAP: Record<string, string> = {
   ts: 'typescript', tsx: 'typescript',
@@ -65,9 +66,10 @@ function formatAnnotation(
 
 export async function exportMarkdown(store: AnnotationStore): Promise<void> {
   const data = await store.load();
+  const exportable = exportableAnnotations(data.annotations);
 
-  if (data.annotations.length === 0) {
-    vscode.window.showWarningMessage('Annotate: No annotations to export.');
+  if (exportable.length === 0) {
+    vscode.window.showWarningMessage(noExportMessage(data.annotations.length));
     return;
   }
 
@@ -76,7 +78,7 @@ export async function exportMarkdown(store: AnnotationStore): Promise<void> {
     .get<boolean>('includeFileContents', true);
 
   const byFile = new Map<string, Annotation[]>();
-  for (const annotation of data.annotations) {
+  for (const annotation of exportable) {
     const list = byFile.get(annotation.fileUri) ?? [];
     list.push(annotation);
     byFile.set(annotation.fileUri, list);

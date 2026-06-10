@@ -27,6 +27,12 @@ export interface Annotation {
    * the annotation was written. Absent on annotations created before P4.4.
    */
   contentSnapshot?: string;
+  /**
+   * True when the annotation has been addressed. Resolved annotations are
+   * dimmed in the editor and excluded from exports by default (see
+   * `annotate.exportIncludeResolved`). Absent means open.
+   */
+  resolved?: boolean;
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 }

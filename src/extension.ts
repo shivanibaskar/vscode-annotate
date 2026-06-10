@@ -23,6 +23,7 @@ import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
 import { registerTerminalCloseListener } from './commands/exportToTerminal';
 import { copyFileAnnotations } from './commands/copyFileAnnotations';
 import { copyToClipboard } from './commands/copyToClipboard';
+import { toggleResolved } from './commands/toggleResolved';
 import { annotationToRange } from './rangeUtils';
 import { resolveFileUri, toFileUri } from './workspaceUtils';
 
@@ -45,13 +46,23 @@ export function activate(context: vscode.ExtensionContext): void {
 
   async function updateStatusBar(): Promise<void> {
     const data = await store.load();
-    const count = data.annotations.length;
-    if (count === 0) {
+    const total = data.annotations.length;
+    const resolvedCount = data.annotations.filter(a => a.resolved).length;
+    const open = total - resolvedCount;
+    if (total === 0) {
       statusBar.hide();
-    } else {
-      statusBar.text = count === 1 ? '$(comment) 1 annotation' : `$(comment) ${count} annotations`;
-      statusBar.show();
+      return;
     }
+    if (open === 0) {
+      // Everything addressed — celebrate rather than show "0 annotations".
+      statusBar.text = `$(comment) ${resolvedCount} resolved`;
+    } else {
+      statusBar.text = open === 1 ? '$(comment) 1 annotation' : `$(comment) ${open} annotations`;
+      if (resolvedCount > 0) {
+        statusBar.text += ` · ${resolvedCount} resolved`;
+      }
+    }
+    statusBar.show();
   }
 
   // ── Sidebar title / empty-state message ───────────────────────────────────
@@ -61,10 +72,15 @@ export function activate(context: vscode.ExtensionContext): void {
     void (async () => {
       try {
         const data = await store.load();
-        if (data.annotations.length === 0) {
+        const total = data.annotations.length;
+        const resolvedCount = data.annotations.filter(a => a.resolved).length;
+        if (total === 0) {
           treeView.message = `No annotations yet — select text and press ${
             process.platform === 'darwin' ? '⌘' : 'Ctrl'
           }+Shift+H to start`;
+        } else if (!treeProvider.showResolved && resolvedCount === total) {
+          // The tree would render empty with no hint otherwise.
+          treeView.message = `${resolvedCount} resolved annotation${resolvedCount === 1 ? '' : 's'} hidden — use the eye icon to show.`;
         } else {
           treeView.message = store.setName === 'default' ? undefined : `Set: ${store.setName}`;
         }
@@ -188,12 +204,17 @@ export function activate(context: vscode.ExtensionContext): void {
       treeProvider.setSortMode(picked.mode);
     }),
 
-    // Sync sort mode when settings.json is edited directly.
+    // Sync sidebar preferences when settings.json is edited directly.
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('annotate.sidebarSortMode')) {
         const raw = vscode.workspace.getConfiguration('annotate').get<string>('sidebarSortMode');
         const mode: SortMode = raw === 'date' || raw === 'tag' ? raw : 'file';
         treeProvider.setSortMode(mode, false);
+      }
+      if (e.affectsConfiguration('annotate.sidebarShowResolved')) {
+        const show = vscode.workspace.getConfiguration('annotate').get<boolean>('sidebarShowResolved', true);
+        treeProvider.setShowResolved(show, false);
+        updateTreeViewTitle();
       }
     }),
 
@@ -252,6 +273,22 @@ export function activate(context: vscode.ExtensionContext): void {
       'annotate.deleteAnnotation',
       (nodeOrAnnotation?: AnnotationNode | Annotation | HoverArg) => deleteAnnotation(store, decorations, nodeOrAnnotation)
     ),
+
+    vscode.commands.registerCommand(
+      'annotate.toggleResolved',
+      (nodeOrAnnotation?: AnnotationNode | Annotation | HoverArg) => toggleResolved(store, decorations, nodeOrAnnotation)
+    ),
+
+    // Eye / eye-closed pair in the sidebar toolbar — which one is visible is
+    // driven by the annotate.showResolved context key set by the provider.
+    vscode.commands.registerCommand('annotate.hideResolved', () => {
+      treeProvider.setShowResolved(false);
+      updateTreeViewTitle();
+    }),
+    vscode.commands.registerCommand('annotate.showResolved', () => {
+      treeProvider.setShowResolved(true);
+      updateTreeViewTitle();
+    }),
 
     vscode.commands.registerCommand('annotate.refreshAnnotationsView', () => {
       treeProvider.forceRefresh();

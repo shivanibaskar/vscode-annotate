@@ -32,13 +32,19 @@ function lineLabel(start: number, end: number): string {
 export class FileNode extends vscode.TreeItem {
   readonly fileUri: string;
 
-  constructor(fileUri: string, count: number) {
+  /**
+   * @param fileUri       - Workspace-relative path of the file.
+   * @param count         - Number of annotations shown under this node.
+   * @param resolvedCount - How many of those are resolved (0 keeps the legacy label).
+   */
+  constructor(fileUri: string, count: number, resolvedCount = 0) {
     super(
       path.basename(fileUri),
       vscode.TreeItemCollapsibleState.Expanded
     );
     this.fileUri = fileUri;
-    this.description = count === 1 ? '1 annotation' : `${count} annotations`;
+    const base = count === 1 ? '1 annotation' : `${count} annotations`;
+    this.description = resolvedCount > 0 ? `${base} (${resolvedCount} resolved)` : base;
     this.contextValue = 'fileNode';
     this.iconPath = vscode.ThemeIcon.File;
   }
@@ -61,9 +67,12 @@ export class AnnotationNode extends vscode.TreeItem {
     const tagLabel = annotation.tag ? ` [${annotation.tag}]` : '';
     const mentions = parseMentions(annotation.comment);
     const mentionLabel = mentions.length > 0 ? '  ' + mentions.join(' ') : '';
-    this.description = lineLabel(annotation.range.start, annotation.range.end) + tagLabel + mentionLabel;
-    this.tooltip = annotation.comment;
-    const iconId = annotation.tag ? (TAG_ICONS[annotation.tag] ?? 'comment') : 'comment';
+    const resolvedLabel = annotation.resolved ? ' · ✓ resolved' : '';
+    this.description = lineLabel(annotation.range.start, annotation.range.end) + tagLabel + mentionLabel + resolvedLabel;
+    this.tooltip = annotation.resolved ? `✓ Resolved\n\n${annotation.comment}` : annotation.comment;
+    const iconId = annotation.resolved
+      ? 'pass-filled'
+      : annotation.tag ? (TAG_ICONS[annotation.tag] ?? 'comment') : 'comment';
     this.iconPath = new vscode.ThemeIcon(iconId);
     this.contextValue = 'annotationNode';
     this.command = {
@@ -82,13 +91,17 @@ export class AnnotationsTreeProvider
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private _sortMode: SortMode = 'file';
+  private _showResolved = true;
 
   constructor(private readonly store: AnnotationStore) {
     store.onDidChange(() => this._onDidChangeTreeData.fire());
 
-    // Initialise sort mode from workspace config.
-    const raw = vscode.workspace.getConfiguration('annotate').get<string>('sidebarSortMode');
-    this._sortMode = toSortMode(raw);
+    // Initialise sort mode and resolved-visibility from workspace config.
+    const config = vscode.workspace.getConfiguration('annotate');
+    this._sortMode = toSortMode(config.get<string>('sidebarSortMode'));
+    this._showResolved = config.get<boolean>('sidebarShowResolved', true);
+    // Drive the eye / eye-closed toolbar button via a context key.
+    void vscode.commands.executeCommand('setContext', 'annotate.showResolved', this._showResolved);
   }
 
   getTreeItem(element: FileNode | AnnotationNode): vscode.TreeItem {
@@ -101,11 +114,14 @@ export class AnnotationsTreeProvider
     }
 
     const data = await this.store.load();
+    const visible = this._showResolved
+      ? data.annotations
+      : data.annotations.filter(a => !a.resolved);
 
     if (!element) {
       // Root: group annotations by file, then sort according to current mode.
       const byFile = new Map<string, Annotation[]>();
-      for (const ann of data.annotations) {
+      for (const ann of visible) {
         const list = byFile.get(ann.fileUri) ?? [];
         list.push(ann);
         byFile.set(ann.fileUri, list);
@@ -125,11 +141,13 @@ export class AnnotationsTreeProvider
         entries.sort(([a], [b]) => a.localeCompare(b));
       }
 
-      return entries.map(([fileUri, anns]) => new FileNode(fileUri, anns.length));
+      return entries.map(([fileUri, anns]) =>
+        new FileNode(fileUri, anns.length, anns.filter(a => a.resolved).length)
+      );
     }
 
     // FileNode: return AnnotationNodes for this file, sorted per current mode.
-    const annotations = data.annotations.filter(a => a.fileUri === element.fileUri);
+    const annotations = visible.filter(a => a.fileUri === element.fileUri);
 
     if (this._sortMode === 'date') {
       // Newest annotation first.
@@ -176,6 +194,33 @@ export class AnnotationsTreeProvider
   /** Returns the currently active sort mode. */
   get sortMode(): SortMode {
     return this._sortMode;
+  }
+
+  /**
+   * Show or hide resolved annotations in the tree and refresh it.
+   *
+   * Mirrors {@link setSortMode}: pass `persist: false` from the
+   * `onDidChangeConfiguration` handler to avoid a write-back loop.
+   *
+   * @param show    - Whether resolved annotations should be visible.
+   * @param persist - Whether to persist to the `annotate.sidebarShowResolved` workspace setting.
+   */
+  setShowResolved(show: boolean, persist = true): void {
+    this._showResolved = show;
+    void vscode.commands.executeCommand('setContext', 'annotate.showResolved', show);
+    this._onDidChangeTreeData.fire();
+    if (persist) {
+      void vscode.workspace.getConfiguration('annotate').update(
+        'sidebarShowResolved',
+        show,
+        vscode.ConfigurationTarget.Workspace
+      );
+    }
+  }
+
+  /** Whether resolved annotations are currently visible in the tree. */
+  get showResolved(): boolean {
+    return this._showResolved;
   }
 
   forceRefresh(): void {

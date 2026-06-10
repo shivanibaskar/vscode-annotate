@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { buildExportText } from './buildExportText';
+import { noExportMessage } from './exportFilter';
 
 /**
  * Injects the current annotation export into an active VS Code terminal
@@ -32,7 +33,9 @@ export async function exportToTerminal(store: AnnotationStore): Promise<void> {
   const output = await buildExportText(store);
 
   if (output === null) {
-    vscode.window.showWarningMessage('Annotate: No annotations to export.');
+    // Distinguish "no annotations" from "everything is resolved".
+    const total = (await store.load()).annotations.length;
+    vscode.window.showWarningMessage(noExportMessage(total));
     return;
   }
 

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { buildExportText } from './buildExportText';
+import { exportableAnnotations, noExportMessage } from './exportFilter';
 
 /**
  * Builds the full LLM export text using the active template and settings,
@@ -14,10 +15,11 @@ import { buildExportText } from './buildExportText';
  */
 export async function copyToClipboard(store: AnnotationStore): Promise<void> {
   const data = await store.load();
-  const count = data.annotations.length;
+  // Count what will actually be exported so the toast doesn't lie.
+  const count = exportableAnnotations(data.annotations).length;
 
   if (count === 0) {
-    vscode.window.showWarningMessage('Annotate: No annotations to copy.');
+    vscode.window.showWarningMessage(noExportMessage(data.annotations.length));
     return;
   }
 

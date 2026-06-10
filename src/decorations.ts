@@ -14,7 +14,7 @@ const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
   _default:  'editorInfo.foreground',
 };
 
-const GUTTER_ICONS: Record<AnnotationTag | '_default' | '_stale', string> = {
+const GUTTER_ICONS: Record<AnnotationTag | '_default' | '_stale' | '_resolved', string> = {
   bug:       'gutter-bug.svg',
   question:  'gutter-question.svg',
   todo:      'gutter-todo.svg',
@@ -22,6 +22,7 @@ const GUTTER_ICONS: Record<AnnotationTag | '_default' | '_stale', string> = {
   important: 'gutter-important.svg',
   _default:  'gutter-default.svg',
   _stale:    'gutter-stale.svg',
+  _resolved: 'gutter-resolved.svg',
 };
 
 const ALL_TAGS: (AnnotationTag | '_default')[] = [
@@ -46,6 +47,7 @@ function makeDecorationType(
 export class DecorationsManager {
   private readonly types: Map<AnnotationTag | '_default', vscode.TextEditorDecorationType>;
   private readonly staleDecoration: vscode.TextEditorDecorationType;
+  private readonly resolvedDecoration: vscode.TextEditorDecorationType;
 
   /**
    * @param store        - The active annotation store.
@@ -78,6 +80,21 @@ export class DecorationsManager {
       ...(staleIconPath ? { gutterIconPath: staleIconPath, gutterIconSize: 'contain' } : {}),
     });
 
+    // Resolved annotations: dimmed text, muted border, no background highlight —
+    // visually "done" without disappearing entirely.
+    const resolvedIconPath = extensionUri
+      ? vscode.Uri.joinPath(extensionUri, 'media', GUTTER_ICONS['_resolved'])
+      : undefined;
+    this.resolvedDecoration = vscode.window.createTextEditorDecorationType({
+      borderWidth: '0 0 0 3px',
+      borderStyle: 'solid',
+      borderColor: new vscode.ThemeColor('disabledForeground'),
+      opacity: '0.6',
+      overviewRulerColor: new vscode.ThemeColor('disabledForeground'),
+      overviewRulerLane: vscode.OverviewRulerLane.Left,
+      ...(resolvedIconPath ? { gutterIconPath: resolvedIconPath, gutterIconSize: 'contain' } : {}),
+    });
+
     // Validate icons at construction time so a packaging mistake (missing SVG)
     // surfaces a warning immediately rather than silently producing blank gutters.
     if (extensionUri) {
@@ -107,14 +124,18 @@ export class DecorationsManager {
     const annotations = await this.store.getForFile(relPath);
     const docText = editor.document.getText();
 
-    // Group by tag key; stale annotations get their own amber decoration instead.
+    // Group by tag key; stale annotations get their own amber decoration, and
+    // resolved annotations take precedence over both (done > stale > tag).
     const buckets = new Map<AnnotationTag | '_default', vscode.Range[]>();
     for (const tag of ALL_TAGS) { buckets.set(tag, []); }
     const staleRanges: vscode.Range[] = [];
+    const resolvedRanges: vscode.Range[] = [];
 
     for (const a of annotations) {
       const range = annotationToRange(a);
-      if (isAnnotationStale(a, docText)) {
+      if (a.resolved) {
+        resolvedRanges.push(range);
+      } else if (isAnnotationStale(a, docText)) {
         staleRanges.push(range);
       } else {
         const key: AnnotationTag | '_default' = a.tag ?? '_default';
@@ -126,6 +147,7 @@ export class DecorationsManager {
       editor.setDecorations(this.types.get(tag)!, buckets.get(tag)!);
     }
     editor.setDecorations(this.staleDecoration, staleRanges);
+    editor.setDecorations(this.resolvedDecoration, resolvedRanges);
   }
 
   /** Remove all decorations from all visible editors. */
@@ -135,6 +157,7 @@ export class DecorationsManager {
         editor.setDecorations(type, []);
       }
       editor.setDecorations(this.staleDecoration, []);
+      editor.setDecorations(this.resolvedDecoration, []);
     }
   }
 
@@ -150,5 +173,6 @@ export class DecorationsManager {
       type.dispose();
     }
     this.staleDecoration.dispose();
+    this.resolvedDecoration.dispose();
   }
 }
