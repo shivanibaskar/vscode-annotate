@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Annotation } from './types';
 import { AnnotationStore } from './annotationStore';
 import { parseMentions } from './mentions';
+import { annotationToRange } from './rangeUtils';
 
 function formatTimestamp(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -25,20 +26,23 @@ export class AnnotationHoverProvider implements vscode.HoverProvider {
     const relPath = vscode.workspace.asRelativePath(document.uri, false);
     const annotations = await this.store.getForFile(relPath);
 
-    const matching = annotations.filter(
-      a => position.line >= a.range.start && position.line <= a.range.end
-    );
+    // Match against the character-precise range so an annotation on part of
+    // a line is not attributed to (or highlighted across) the whole line.
+    // Legacy annotations without char info fall back to whole-line ranges.
+    const matchingRanges = annotations
+      .map(a => ({ annotation: a, range: annotationToRange(a) }))
+      .filter(({ range }) => range.contains(position));
 
-    if (matching.length === 0) {
+    if (matchingRanges.length === 0) {
       return undefined;
     }
 
-    const startLine = Math.min(...matching.map(a => a.range.start));
-    const endLine   = Math.max(...matching.map(a => a.range.end));
-    const hoverRange = new vscode.Range(
-      new vscode.Position(startLine, 0),
-      new vscode.Position(endLine, Number.MAX_SAFE_INTEGER)
-    );
+    const matching = matchingRanges.map(({ annotation }) => annotation);
+    // VS Code highlights the hover range while the popup is visible, so keep
+    // it as tight as the matching annotations allow.
+    const hoverRange = matchingRanges
+      .map(({ range }) => range)
+      .reduce((acc, r) => acc.union(r));
 
     const md = new vscode.MarkdownString();
     md.isTrusted = true; // required for command URIs in Edit/Delete links

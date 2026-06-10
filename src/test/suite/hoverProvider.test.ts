@@ -95,6 +95,53 @@ suite('AnnotationHoverProvider', () => {
     assert.strictEqual(hover!.range!.end.line, 3);
   });
 
+  test('returns undefined when position is outside the annotated character range', async () => {
+    const doc = await openDocument('The quick brown fox jumps over the lazy dog\n');
+    await store.add({
+      id: 'c1',
+      fileUri: vscode.workspace.asRelativePath(doc.uri, false),
+      range: { start: 0, end: 0, startChar: 4, endChar: 9 }, // "quick"
+      comment: 'partial-line annotation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const hover = await provider.provideHover(doc, new vscode.Position(0, 20));
+    assert.strictEqual(hover, undefined, 'Hover must not trigger outside the annotated chars');
+  });
+
+  test('returns a Hover when position is inside the annotated character range', async () => {
+    const doc = await openDocument('The quick brown fox jumps over the lazy dog\n');
+    await store.add({
+      id: 'c2',
+      fileUri: vscode.workspace.asRelativePath(doc.uri, false),
+      range: { start: 0, end: 0, startChar: 4, endChar: 9 },
+      comment: 'partial-line annotation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const hover = await provider.provideHover(doc, new vscode.Position(0, 6));
+    assert.ok(hover, 'Expected hover inside the annotated chars');
+  });
+
+  test('hover range is character-precise for partial-line annotations', async () => {
+    const doc = await openDocument('The quick brown fox jumps over the lazy dog\n');
+    await store.add({
+      id: 'c3',
+      fileUri: vscode.workspace.asRelativePath(doc.uri, false),
+      range: { start: 0, end: 0, startChar: 4, endChar: 9 },
+      comment: 'partial-line annotation',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const hover = await provider.provideHover(doc, new vscode.Position(0, 6));
+    assert.ok(hover?.range, 'Expected hover range');
+    assert.strictEqual(hover!.range!.start.character, 4, 'Hover range must start at the annotation start char');
+    assert.strictEqual(hover!.range!.end.character, 9, 'Hover range must end at the annotation end char');
+  });
+
   test('multiple annotations on same line are merged into one hover', async () => {
     const doc = await openDocument('overlap\n');
     const fileUri = vscode.workspace.asRelativePath(doc.uri, false);

@@ -23,6 +23,7 @@ import { AnnotationCodeLensProvider } from './annotationCodeLensProvider';
 import { registerTerminalCloseListener } from './commands/exportToTerminal';
 import { copyFileAnnotations } from './commands/copyFileAnnotations';
 import { copyToClipboard } from './commands/copyToClipboard';
+import { annotationToRange } from './rangeUtils';
 
 export function activate(context: vscode.ExtensionContext): void {
   const store = new AnnotationStore();
@@ -256,10 +257,8 @@ export function activate(context: vscode.ExtensionContext): void {
         const uri = vscode.Uri.joinPath(folders[0].uri, annotation.fileUri);
         const doc = await vscode.workspace.openTextDocument(uri);
         const editor = await vscode.window.showTextDocument(doc);
-        const range = new vscode.Range(
-          new vscode.Position(annotation.range.start, 0),
-          new vscode.Position(annotation.range.end, Number.MAX_SAFE_INTEGER)
-        );
+        // Character-precise so the selection matches exactly what was annotated.
+        const range = annotationToRange(annotation);
         editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
         editor.selection = new vscode.Selection(range.start, range.end);
       }

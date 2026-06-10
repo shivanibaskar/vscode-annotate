@@ -3,6 +3,31 @@
 > **Open bugs are tracked on [GitHub Issues](https://github.com/shivanibaskar/vscode-annotate/issues).**
 > This file is a historical archive of fixed bugs.
 
+## Fixed (Char-precise attribution — 2026-06-09)
+
+### BUG-002 — Partial-line annotation attributed to the whole line in hover, reveal, and search
+
+**Status:** Fixed
+**Reported:** 2026-06-09
+**Fixed:** 2026-06-09
+
+**Description:**
+Annotating part of a sentence highlighted/attributed the annotation to the entire line in several surfaces, even though the stored range and the persistent decoration were already character-precise (BUG-001):
+
+1. **Hover** matched annotations by line only and returned a whole-line hover range. VS Code paints `editor.hoverHighlightBackground` over the hover range while the popup is visible, so hovering anywhere on the line lit up the whole sentence.
+2. **Reveal from sidebar/CodeLens** (`annotate.revealAnnotation`) and **Search Annotations** selected whole lines (`char 0 → MAX_SAFE_INTEGER`), ignoring `startChar`/`endChar`.
+3. **Creation edge case:** a selection ending at column 0 of the following line decremented `endLine` but kept `endChar: 0`, persisting a reversed (single-line) or zero-coverage (multi-line) range — `vscode.Range` silently swapped the reversed form onto the *unannotated* prefix of the line.
+
+**Root cause:** the char-precise `annotationToRange` conversion lived privately in `decorations.ts`; every other annotation→Range site built its own whole-line range.
+
+**Fix:** Extracted `annotationToRange` into `src/rangeUtils.ts` and reused it in the hover provider (which now also *matches* by character containment, not just line), `revealAnnotation`, and `searchAnnotations`. The helper validates char offsets (hand-editable JSON may contain negative/fractional/NaN values — these fall back to the whole-line span instead of throwing) and repairs ranges persisted by the pre-fix column-0 bug by extending them to end-of-line. `annotateSelection` now stores `endChar` as the end of the last annotated line when the selection ends at column 0. `getAnnotationAtCursor` (edit/delete via keyboard) stays deliberately line-based for discoverability.
+
+**Known limitations:** character offsets can drift on same-line edits (`shiftAnnotations` only handles line insertions/deletions) — pre-existing, applies equally to decorations. The rendered Markdown preview still highlights whole block elements; rendered HTML has no character-level source map.
+
+**Affected files:** `src/rangeUtils.ts` (new), `src/decorations.ts`, `src/hoverProvider.ts`, `src/extension.ts`, `src/commands/searchAnnotations.ts`, `src/commands/annotateSelection.ts`, `src/commands/utils.ts`, `src/test/runTest.ts` (short `--user-data-dir` so the suite runs from deep checkouts)
+
+---
+
 ## Fixed (Security Hardening — 2026-04-08)
 
 ### SEC-001 — Weak Content Security Policy in ExportPreviewPanel

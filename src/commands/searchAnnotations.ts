@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { AnnotationStore } from '../annotationStore';
 import { Annotation } from '../types';
+import { annotationToRange } from '../rangeUtils';
 
 interface AnnotationQuickPickItem extends vscode.QuickPickItem {
   annotation: Annotation;
@@ -47,10 +48,8 @@ export async function searchAnnotations(store: AnnotationStore): Promise<void> {
   const doc = await vscode.workspace.openTextDocument(uri);
   const editor = await vscode.window.showTextDocument(doc);
 
-  const range = new vscode.Range(
-    new vscode.Position(annotation.range.start, 0),
-    new vscode.Position(annotation.range.end, Number.MAX_SAFE_INTEGER)
-  );
+  // Character-precise so the selection matches exactly what was annotated.
+  const range = annotationToRange(annotation);
   editor.revealRange(range, vscode.TextEditorRevealType.InCenterIfOutsideViewport);
   editor.selection = new vscode.Selection(range.start, range.end);
 }

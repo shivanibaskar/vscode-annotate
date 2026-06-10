@@ -30,13 +30,18 @@ export async function annotateSelection(
   const fileUri = vscode.workspace.asRelativePath(editor.document.uri, false);
   const now = new Date().toISOString();
 
-  // If selection ends at column 0, the last line isn't really included.
+  // If selection ends at column 0, the last line isn't really included —
+  // drop it and extend endChar to the end of the previous line so the stored
+  // range covers everything the user actually selected.
   let endLine = selection.end.line;
-  if (selection.end.character === 0 && endLine > selection.start.line) {
+  let endChar = selection.end.character;
+  if (endChar === 0 && endLine > selection.start.line) {
     endLine -= 1;
+    endChar = editor.document.lineAt(endLine).text.length;
   }
 
   // Capture the exact text of the annotated lines so we can detect staleness later.
+  // Must stay whole-line: isAnnotationStale compares against whole document lines.
   const snapshotRange = new vscode.Range(
     new vscode.Position(selection.start.line, 0),
     new vscode.Position(endLine, Number.MAX_SAFE_INTEGER)
@@ -50,7 +55,7 @@ export async function annotateSelection(
       start: selection.start.line,
       end: endLine,
       startChar: selection.start.character,
-      endChar: selection.end.character,
+      endChar,
     },
     comment: result.comment,
     ...(result.tag ? { tag: result.tag } : {}),

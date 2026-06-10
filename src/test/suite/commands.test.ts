@@ -149,6 +149,38 @@ suite('annotateSelection command', () => {
     assert.strictEqual(typeof data.annotations[0].fileUri, 'string');
   });
 
+  test('stores the exact selected character range', async () => {
+    const editor = await openDocument('The quick brown fox\n');
+    editor.selection = new vscode.Selection(0, 4, 0, 9); // "quick"
+
+    await withInputMock({ comment: 'char range', tag: undefined }, async () => {
+      await annotateSelection(store, decorations);
+    });
+
+    await store.flush();
+    const data = await store.load();
+    assert.strictEqual(data.annotations[0].range.startChar, 4);
+    assert.strictEqual(data.annotations[0].range.endChar, 9);
+  });
+
+  test('selection ending at column 0 captures the end of the previous line', async () => {
+    const editor = await openDocument('alpha\nbeta\ngamma\n');
+    // Select from char 2 of "alpha" through the trailing newline (col 0 of line 1).
+    editor.selection = new vscode.Selection(0, 2, 1, 0);
+
+    await withInputMock({ comment: 'col0 edge', tag: undefined }, async () => {
+      await annotateSelection(store, decorations);
+    });
+
+    await store.flush();
+    const data = await store.load();
+    const range = data.annotations[0].range;
+    assert.strictEqual(range.start, 0);
+    assert.strictEqual(range.end, 0, 'Line 1 is not really included when selection ends at its col 0');
+    assert.strictEqual(range.startChar, 2);
+    assert.strictEqual(range.endChar, 5, 'endChar must reach the end of "alpha", not 0');
+  });
+
   test('captures contentSnapshot of selected lines', async () => {
     const editor = await openDocument('alpha\nbeta\ngamma\n');
     // Select lines 0–1 ("alpha" and "beta")

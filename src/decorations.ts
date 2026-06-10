@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import { Annotation, AnnotationTag } from './types';
+import { AnnotationTag } from './types';
 import { AnnotationStore } from './annotationStore';
 import { isAnnotationStale } from './staleDetector';
+import { annotationToRange } from './rangeUtils';
 
 const TAG_COLORS: Record<AnnotationTag | '_default', string> = {
   bug:       'errorForeground',
@@ -149,22 +150,4 @@ export class DecorationsManager {
     }
     this.staleDecoration.dispose();
   }
-}
-
-function annotationToRange(a: Annotation): vscode.Range {
-  const hasCharInfo =
-    a.range.startChar !== undefined && a.range.endChar !== undefined;
-
-  if (hasCharInfo) {
-    return new vscode.Range(
-      new vscode.Position(a.range.start, a.range.startChar!),
-      new vscode.Position(a.range.end,   a.range.endChar!)
-    );
-  }
-
-  // Legacy annotations without character info: highlight the full line span.
-  return new vscode.Range(
-    new vscode.Position(a.range.start, 0),
-    new vscode.Position(a.range.end,   Number.MAX_SAFE_INTEGER)
-  );
 }
